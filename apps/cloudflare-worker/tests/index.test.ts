@@ -63,6 +63,9 @@ describe("Cloudflare status worker", () => {
     expect((await current.json()).schemaVersion).toBe("1.0.0");
     expect(await asset.text()).toBe("asset");
     expect(asset.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+    expect(asset.headers.get("content-security-policy")).toContain(
+      "script-src 'self' https://static.cloudflareinsights.com",
+    );
   });
 
   test("refreshes a stale snapshot before returning it", async () => {
