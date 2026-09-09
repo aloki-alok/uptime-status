@@ -15,7 +15,7 @@ function chartData(latency: NonNullable<(typeof measured)[number]["latency"]>) {
   const max = Math.ceil(Math.max(...values) / 25) * 25;
   const span = Math.max(max - min, 25);
   const point = (value: number, index: number) => {
-    const x = 18 + (index / (latency.length - 1)) * 564;
+    const x = latency.length === 1 ? 300 : 18 + (index / (latency.length - 1)) * 564;
     const y = 142 - ((value - min) / span) * 118;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   };

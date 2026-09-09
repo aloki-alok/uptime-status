@@ -181,7 +181,7 @@ function isSnapshot(value) {
       ) &&
       (component.latency === null ||
         (Array.isArray(component.latency) &&
-          component.latency.length >= 12 &&
+          component.latency.length >= 1 &&
           component.latency.every(isLatencyPoint))),
   );
 }
@@ -318,7 +318,7 @@ function chartData(latency) {
   const max = Math.ceil(Math.max(...values) / 25) * 25;
   const span = Math.max(max - min, 25);
   const point = (value, index) => {
-    const x = 18 + (index / (latency.length - 1)) * 564;
+    const x = latency.length === 1 ? 300 : 18 + (index / (latency.length - 1)) * 564;
     const y = 142 - ((value - min) / span) * 118;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   };
