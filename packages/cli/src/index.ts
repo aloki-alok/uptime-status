@@ -8,6 +8,7 @@ import {
   validateSiteFile,
 } from "./commands";
 import { inspectHistory } from "./history";
+import { createProbeSnapshot } from "./snapshot";
 
 export const HELP = `Usage: uptime-status <command> [options]
 
@@ -17,6 +18,8 @@ Commands:
   build --site <path> [--snapshot <path>]
                                       Build the static site for one site
   doctor <status.config.json>          Check Bun, config, assets, and environment secrets
+  snapshot probe --site <path> --out <path>
+                                      Probe a direct HTTPS source and write the first snapshot
   history inspect --site <path> --source <id> --artifact <path>
                   --cutoff <ISO time> --exported <ISO time>
                   --source-version <version> --out <path>
@@ -116,6 +119,19 @@ export async function run(args: string[]) {
     console.log(`Components: ${result.componentCount}`);
     console.log(`Daily rows: ${result.dayCount}`);
     console.log("No source credentials or private monitor fields were written to the bundle.");
+    return 0;
+  }
+
+  if (command === "snapshot" && rest[0] === "probe") {
+    const snapshotArgs = rest.slice(1);
+    const sitePath = requiredOption(snapshotArgs, "--site");
+    const outputPath = requiredOption(snapshotArgs, "--out");
+    if (snapshotArgs.length !== 4) {
+      throw new Error("snapshot probe accepts only --site <path> and --out <path>");
+    }
+    const result = await createProbeSnapshot({ sitePath, outputPath });
+    console.log(`Snapshot written to ${result.outputPath}`);
+    console.log(`Source revision: ${result.snapshot.sourceRevision}`);
     return 0;
   }
 
