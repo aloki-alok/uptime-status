@@ -3,7 +3,7 @@ import {
   type StatusSnapshot,
   type StatusState,
   validateStatusSnapshot,
-} from "@uptime-status/domain";
+} from "@uptime-status/domain/snapshot";
 
 const DAY_MS = 86_400_000;
 const HISTORY_DAYS = 90;
@@ -16,6 +16,7 @@ export type ProbeComponent = {
   group: string;
   url: string;
   timeoutMs?: number;
+  showLatency?: boolean;
 };
 
 type HttpFetcher = (url: string, init: RequestInit) => Promise<Response>;
@@ -132,6 +133,28 @@ function sourceRevision(observedAt: string, statusCode: number) {
   return `probe-${observedAt.replace(/[^0-9]/g, "")}-${statusCode}`;
 }
 
+function latencyHistory(
+  observedAt: string,
+  responseTimeMs: number,
+  current: StatusSnapshot | null,
+  enabled: boolean,
+) {
+  if (!enabled) return null;
+
+  const bucketTime = Math.floor(Date.parse(observedAt) / 60_000) * 60_000;
+  const bucketAt = new Date(bucketTime).toISOString();
+  const cutoff = bucketTime - 59 * 60_000;
+  const previous = (current?.components[0]?.latency ?? []).filter(
+    (point) => Date.parse(point.observedAt) >= cutoff && Date.parse(point.observedAt) <= bucketTime,
+  );
+  const point = { observedAt: bucketAt, avgMs: responseTimeMs, p95Ms: responseTimeMs };
+
+  if (previous.at(-1)?.observedAt === bucketAt) {
+    return [...previous.slice(0, -1), point];
+  }
+  return [...previous, point];
+}
+
 function currentSnapshot(value: unknown | null, component: ProbeComponent) {
   if (value === null) return null;
   if (!validateStatusSnapshot(value)) {
@@ -153,7 +176,7 @@ async function probe(component: ProbeComponent, fetcher: HttpFetcher, now: () =>
       cache: "no-store",
       headers: { accept: "application/json, text/plain;q=0.9, */*;q=0.1" },
       method: "GET",
-      redirect: "follow",
+      redirect: "manual",
       signal: controller.signal,
     });
     const completedAt = checkedNow(now);
@@ -212,7 +235,12 @@ export async function publishProbeSnapshot(
         state,
         latestObservedAt: observedAt,
         responseTimeMs: observation.responseTimeMs,
-        latency: null,
+        latency: latencyHistory(
+          observedAt,
+          observation.responseTimeMs,
+          previous,
+          component.showLatency ?? false,
+        ),
         history: createHistory(observedAt, state, previous),
       },
     ],

@@ -63,6 +63,44 @@ describe("HTTPS probe snapshot publisher", () => {
     expect(validateStatusSnapshot(result.snapshot)).toBe(true);
   });
 
+  test("keeps truthful minute-bucket latency without filling missed checks", async () => {
+    const measured = { ...component, showLatency: true };
+    const first = await publishProbeSnapshot(measured, {
+      readCurrent: async () => null,
+      publish: async () => {},
+      fetch: async () => new Response(null, { status: 200 }),
+      now: clock("2026-09-09T10:00:10.000Z", "2026-09-09T10:00:10.080Z"),
+    });
+    const second = await publishProbeSnapshot(measured, {
+      readCurrent: async () => first.snapshot,
+      publish: async () => {},
+      fetch: async () => new Response(null, { status: 200 }),
+      now: clock("2026-09-09T10:02:20.000Z", "2026-09-09T10:02:20.140Z"),
+    });
+
+    expect(second.snapshot.components[0]?.latency).toEqual([
+      { observedAt: "2026-09-09T10:00:00.000Z", avgMs: 80, p95Ms: 80 },
+      { observedAt: "2026-09-09T10:02:00.000Z", avgMs: 140, p95Ms: 140 },
+    ]);
+    expect(validateStatusSnapshot(second.snapshot)).toBe(true);
+  });
+
+  test("treats a redirect as an observed outage instead of following it", async () => {
+    let redirectMode: RequestRedirect | undefined;
+    const result = await publishProbeSnapshot(component, {
+      readCurrent: async () => null,
+      publish: async () => {},
+      fetch: async (_url, init) => {
+        redirectMode = init.redirect;
+        return new Response(null, { status: 302 });
+      },
+      now: clock("2026-09-09T10:00:00.000Z", "2026-09-09T10:00:00.020Z"),
+    });
+
+    expect(redirectMode).toBe("manual");
+    expect(result.snapshot.overallStatus).toBe("major_outage");
+  });
+
   test("rolls the window forward without replacing earlier observed days", async () => {
     const first = await publishProbeSnapshot(component, {
       readCurrent: async () => null,

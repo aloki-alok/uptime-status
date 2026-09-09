@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./publisher": "./src/publisher.ts"
   },
   "scripts": {
     "build:lambda": "bun build src/aws-handler.ts --target=node --outfile=dist/index.mjs",
