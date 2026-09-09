@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createWorker } from "../src/handler";
 import worker from "../src/index";
 import { runPublisher } from "../src/publisher";
 
@@ -32,6 +33,7 @@ function testEnv(kv = new MemoryKv()) {
     COMPONENT_NAME: "Website",
     COMPONENT_GROUP: "Website",
     SHOW_LATENCY: "true",
+    POLL_INTERVAL_SECONDS: "60",
   } as Env;
 }
 
@@ -61,6 +63,31 @@ describe("Cloudflare status worker", () => {
     expect((await current.json()).schemaVersion).toBe("1.0.0");
     expect(await asset.text()).toBe("asset");
     expect(asset.headers.get("content-security-policy")).toContain("frame-ancestors 'none'");
+  });
+
+  test("refreshes a stale snapshot before returning it", async () => {
+    const kv = new MemoryKv();
+    await runPublisher(testEnv(kv), async () => new Response("ok", { status: 200 }));
+    const currentKey = "sites/example-site/current.json";
+    const stale = JSON.parse(kv.values.get(currentKey) ?? "{}");
+    stale.latestCheckAt = "2026-01-01T00:00:00.000Z";
+    stale.components[0].latestObservedAt = "2026-01-01T00:00:00.000Z";
+    kv.values.set(currentKey, JSON.stringify(stale));
+    let probes = 0;
+    const refreshingWorker = createWorker(async () => {
+      probes += 1;
+      return new Response("ok", { status: 200 });
+    });
+
+    const response = await refreshingWorker.fetch(
+      new Request("https://status.example.com/current.json"),
+      testEnv(kv),
+    );
+    const snapshot = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(probes).toBe(1);
+    expect(snapshot.latestCheckAt).not.toBe("2026-01-01T00:00:00.000Z");
   });
 
   test("rejects malformed stored state", async () => {

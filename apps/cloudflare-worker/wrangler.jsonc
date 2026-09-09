@@ -3,7 +3,7 @@
   "name": "uptime-status-example",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-09",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": "../web/dist",
     "binding": "ASSETS",
@@ -21,7 +21,8 @@
     "COMPONENT_SLUG": "website",
     "COMPONENT_NAME": "Website",
     "COMPONENT_GROUP": "Website",
-    "SHOW_LATENCY": "true"
+    "SHOW_LATENCY": "true",
+    "POLL_INTERVAL_SECONDS": "60"
   },
   "triggers": {
     "crons": ["* * * * *"]
