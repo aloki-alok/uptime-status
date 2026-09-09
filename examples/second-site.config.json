@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0.0",
+  "deploymentMode": "example",
+  "siteId": "northwind-cloud",
+  "displayName": "Northwind Cloud",
+  "legalName": "Northwind Cloud Ltd",
+  "locale": "en-GB",
+  "timeZone": "Europe/London",
+  "domains": {
+    "primary": "status.northwind.example"
+  },
+  "brand": {
+    "homeUrl": "https://northwind.example",
+    "logoLightPath": "./second-assets/logo-light.svg",
+    "logoDarkPath": "./second-assets/logo-dark.svg",
+    "iconLightPath": "./second-assets/icon-light.svg",
+    "iconDarkPath": "./second-assets/icon-dark.svg",
+    "faviconPath": "./second-assets/favicon.svg",
+    "logoAlt": "Northwind Cloud"
+  },
+  "community": {
+    "kind": "forum",
+    "label": "Open the Northwind community",
+    "url": "https://community.northwind.example"
+  },
+  "presentation": {
+    "bannerVariant": "plain",
+    "statusCopy": {
+      "operational": "Everything is running normally",
+      "degraded": "Some systems are running slowly",
+      "partialOutage": "Some systems are unavailable",
+      "majorOutage": "Service interruption",
+      "maintenance": "Planned work is underway",
+      "unknown": "Current status is delayed"
+    },
+    "semanticColors": {
+      "operational": "#176b55",
+      "maintenance": "#315ca8",
+      "degraded": "#8a5b12",
+      "outage": "#a33e45",
+      "unknown": "#5d6664"
+    }
+  },
+  "monitoring": {
+    "pollIntervalSeconds": 90,
+    "staleAfterSeconds": 180,
+    "sources": [
+      {
+        "sourceId": "demo",
+        "adapter": "fixture",
+        "fixture": "generated"
+      }
+    ]
+  },
+  "components": [
+    {
+      "componentId": "edge-gateway",
+      "name": "Edge gateway",
+      "group": "Network",
+      "sourceId": "demo",
+      "monitorRef": "edge-gateway",
+      "showLatency": true
+    },
+    {
+      "componentId": "control-panel",
+      "name": "Control panel",
+      "group": "Applications",
+      "sourceId": "demo",
+      "monitorRef": "control-panel",
+      "showLatency": false
+    }
+  ],
+  "subscriptions": {
+    "enabled": false,
+    "disabledReason": "example-deployment",
+    "doubleOptIn": true
+  }
+}

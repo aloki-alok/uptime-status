@@ -1,0 +1,215 @@
+---
+import {
+  deriveOverallStatus,
+  isSnapshotFresh,
+  type StatusSnapshot,
+  type StatusState,
+  type SiteConfig,
+} from "@uptime-status/domain";
+import LatencyPanel from "./LatencyPanel.astro";
+
+type Props = {
+  snapshot: StatusSnapshot;
+  site: SiteConfig;
+  variant: "ledger" | "signal" | "brief";
+  responseDate?: string;
+  showReviewRail?: boolean;
+};
+
+const {
+  snapshot,
+  site,
+  variant,
+  responseDate = new Date().toISOString(),
+  showReviewRail = false,
+} = Astro.props;
+
+const statusCopy: Record<StatusState, { title: string; detail?: string }> = {
+  operational: {
+    title: site.presentation.statusCopy.operational,
+  },
+  degraded: {
+    title: site.presentation.statusCopy.degraded,
+    detail: "Some requests may be slower than usual.",
+  },
+  partial_outage: {
+    title: site.presentation.statusCopy.partialOutage,
+    detail: "Some services are currently unavailable.",
+  },
+  major_outage: {
+    title: site.presentation.statusCopy.majorOutage,
+    detail: "We are investigating and will post updates below.",
+  },
+  maintenance: {
+    title: site.presentation.statusCopy.maintenance,
+    detail: "Some systems may be temporarily affected.",
+  },
+  unknown: {
+    title: site.presentation.statusCopy.unknown,
+    detail: "Showing the most recent verified results below.",
+  },
+};
+
+const effectiveStatus = deriveOverallStatus({
+  isFresh: isSnapshotFresh(snapshot, responseDate),
+  componentStates: snapshot.components.map((component) => component.state),
+  activeIncidents: snapshot.activeIncidents,
+});
+const copy = statusCopy[effectiveStatus];
+const grouped = Map.groupBy(snapshot.components, (component) => component.group);
+const operationalCount = snapshot.components.filter((component) => component.state === "operational").length;
+const dateTime = new Intl.DateTimeFormat(site.locale, {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: site.timeZone,
+  timeZoneName: "short",
+});
+const maintenance = snapshot.scheduledMaintenance.find((item) =>
+  ["scheduled", "active", "verifying"].includes(item.state),
+);
+const maintenanceIsScheduled = maintenance?.state === "scheduled";
+const variantLabel = { ledger: "01 Rule", signal: "02 Field", brief: "03 Line" }[variant];
+const stateLabels: Record<StatusState, string> = {
+  operational: "Operational",
+  degraded: "Outage",
+  partial_outage: "Outage",
+  major_outage: "Outage",
+  maintenance: "Maintenance",
+  unknown: "Status delayed",
+};
+
+function historySummary(component: StatusSnapshot["components"][number]) {
+  const counts = Map.groupBy(component.history, (day) => day.state);
+  const interruptions = component.history.length - (counts.get("operational")?.length ?? 0);
+  const measured = component.history.flatMap((day) => (day.uptime === null ? [] : [day.uptime]));
+  const average =
+    measured.length === 0
+      ? "No uptime measurement is available."
+      : `${(measured.reduce((sum, uptime) => sum + uptime, 0) / measured.length).toFixed(3)}% average uptime.`;
+  const interruptionCopy =
+    interruptions === 0
+      ? "No interrupted days."
+      : `${interruptions} ${interruptions === 1 ? "day" : "days"} with an interruption.`;
+
+  return `${component.name}, 90-day history. ${average} ${interruptionCopy}`;
+}
+---
+
+<main
+  id="main-content"
+  class:list={["status-main", `variant-${variant}`]}
+  data-status-root
+  data-source-revision={snapshot.sourceRevision}
+  data-generated-at={snapshot.generatedAt}
+  data-refresh-interval-ms={site.monitoring.pollIntervalSeconds * 1000}
+  data-stale-after-ms={site.monitoring.staleAfterSeconds * 1000}
+  data-time-zone={site.timeZone}
+  data-copy-operational={site.presentation.statusCopy.operational}
+  data-copy-degraded={site.presentation.statusCopy.degraded}
+  data-copy-partial-outage={site.presentation.statusCopy.partialOutage}
+  data-copy-major-outage={site.presentation.statusCopy.majorOutage}
+  data-copy-maintenance={site.presentation.statusCopy.maintenance}
+  data-copy-unknown={site.presentation.statusCopy.unknown}
+>
+  {showReviewRail && (
+    <div class="review-rail" aria-label="Design previews">
+      <span>Design preview</span>
+      <a href="/v/1/" aria-current={variant === "ledger" ? "page" : undefined}>01</a>
+      <a href="/v/2/" aria-current={variant === "signal" ? "page" : undefined}>02</a>
+      <a href="/v/3/" aria-current={variant === "brief" ? "page" : undefined}>03</a>
+      <span>{variantLabel}</span>
+    </div>
+  )}
+
+  <section class:list={["state-hero", `state-${effectiveStatus}`]} aria-labelledby="state-title" data-state-banner>
+    <div class="state-lead">
+      <div>
+        <h1 id="state-title" data-overall-title>{copy.title}</h1>
+        <p class="state-detail" data-overall-detail hidden={!copy.detail}>{copy.detail}</p>
+        {variant === "brief" && <p class="state-summary" data-state-summary>{operationalCount} of {snapshot.components.length} services operational</p>}
+      </div>
+      <p class="state-verified"><span data-check-label>{effectiveStatus === "unknown" ? "Last verified" : "Last checked"}</span><br /><time datetime={snapshot.latestCheckAt} data-latest-check>{dateTime.format(new Date(snapshot.latestCheckAt))}</time></p>
+    </div>
+  </section>
+
+  <div data-live-events>
+    {snapshot.activeIncidents.length > 0 && (
+      <section class:list={["active-incident", `incident-${snapshot.activeIncidents[0].impact}`]} aria-labelledby="incident-title">
+        <div>
+          <p class="eyebrow">Active incident</p>
+          <h2 id="incident-title">{snapshot.activeIncidents[0].title}</h2>
+        </div>
+        <div class="incident-update">
+          <span class="state-label">{snapshot.activeIncidents[0].state === "monitoring" ? "Under observation" : stateLabels[snapshot.activeIncidents[0].impact]}</span>
+          <p>{snapshot.activeIncidents[0].updates.at(-1)?.message}</p>
+          <a href={`/incidents/${snapshot.activeIncidents[0].slug}/`}>View incident details</a>
+        </div>
+      </section>
+    )}
+
+    {maintenance && (
+      <aside class="maintenance-callout" aria-labelledby="maintenance-title">
+        <div class="maintenance-summary">
+          <p class="eyebrow">{maintenanceIsScheduled ? "Scheduled maintenance" : "Maintenance in progress"}</p>
+          <h2 id="maintenance-title">{maintenance.title}</h2>
+        </div>
+        <p class="maintenance-time"><span>{maintenanceIsScheduled ? "Starts" : "Started"}</span><time datetime={maintenance.startsAt}>{dateTime.format(new Date(maintenance.startsAt))}</time></p>
+        <a href="/maintenance/" aria-label={`View ${maintenance.title} details`}>View details</a>
+      </aside>
+    )}
+  </div>
+
+  <section class="components-section" aria-labelledby="components-title">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Live components</p>
+        <h2 id="components-title">Service health</h2>
+      </div>
+      <div class="history-key" aria-label="Uptime history legend">
+        <span><i class="key-operational"></i>Operational</span>
+        <span><i class="key-maintenance"></i>Maintenance</span>
+        <span><i class="key-outage"></i>Outage</span>
+      </div>
+    </div>
+
+    <div class="component-groups">
+      {Array.from(grouped.entries()).map(([groupName, components]) => (
+        <section class="component-group" aria-labelledby={`group-${groupName.replaceAll(" ", "-")}`}>
+          <header class="group-heading">
+            <h3 id={`group-${groupName.replaceAll(" ", "-")}`}>{groupName}</h3>
+            <span>{components.length} {components.length === 1 ? "service" : "services"}</span>
+          </header>
+          <div class="component-list">
+            {components.map((component) => (
+              <article class="component-row" data-component-slug={component.slug}>
+                <div class="component-identity">
+                  <h4>{component.name}</h4>
+                  <div class="component-meta">
+                    <span class:list={["state-label", `text-${component.state}`]} data-component-state>{stateLabels[component.state]}</span>
+                    <span aria-hidden="true">/</span>
+                    <span data-component-response>{component.responseTimeMs === null ? "Response unavailable" : `${component.responseTimeMs} ms response`}</span>
+                  </div>
+                </div>
+                <div class="uptime-history" role="img" aria-label={historySummary(component)} data-component-history>
+                  {component.history.map((day) => (
+                    <time
+                      class:list={["uptime-day", `day-${day.state}`]}
+                      datetime={day.date}
+                      aria-hidden="true"
+                      title={day.uptime === null ? `${day.date}: no uptime data` : `${day.date}: ${day.uptime}% uptime`}
+                    ></time>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  </section>
+
+  <LatencyPanel components={snapshot.components} {site} />
+</main>

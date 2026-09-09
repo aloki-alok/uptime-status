@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1.0.0",
+  "deploymentMode": "production",
+  "siteId": "change-me",
+  "displayName": "My service",
+  "legalName": "My service",
+  "locale": "en",
+  "timeZone": "UTC",
+  "domains": {
+    "primary": "status.example.test"
+  },
+  "brand": {
+    "homeUrl": "https://example.test",
+    "logoLightPath": "./assets/logo-light.svg",
+    "logoDarkPath": "./assets/logo-dark.svg",
+    "iconLightPath": "./assets/icon-light.svg",
+    "iconDarkPath": "./assets/icon-dark.svg",
+    "faviconPath": "./assets/favicon.svg",
+    "logoAlt": "My service"
+  },
+  "presentation": {
+    "bannerVariant": "classic",
+    "statusCopy": {
+      "operational": "All systems operational",
+      "degraded": "Some systems are degraded",
+      "partialOutage": "Some services are unavailable",
+      "majorOutage": "Major service outage",
+      "maintenance": "Maintenance in progress",
+      "unknown": "Status data is delayed"
+    },
+    "semanticColors": {
+      "operational": "#16805c",
+      "maintenance": "#2f6feb",
+      "degraded": "#a56712",
+      "outage": "#b7433c",
+      "unknown": "#65716e"
+    }
+  },
+  "monitoring": {
+    "pollIntervalSeconds": 60,
+    "staleAfterSeconds": 120,
+    "sources": [
+      {
+        "sourceId": "primary",
+        "adapter": "uptime-kuma",
+        "connection": {
+          "provider": "environment",
+          "reference": "UPTIME_KUMA_CONNECTION"
+        }
+      }
+    ]
+  },
+  "components": [
+    {
+      "componentId": "website",
+      "name": "Website",
+      "group": "Services",
+      "sourceId": "primary",
+      "monitorRef": "CHANGE_ME",
+      "showLatency": true
+    }
+  ],
+  "subscriptions": {
+    "enabled": false,
+    "disabledReason": "not-configured",
+    "doubleOptIn": true
+  }
+}

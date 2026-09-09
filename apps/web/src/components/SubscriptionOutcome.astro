@@ -1,0 +1,23 @@
+---
+import type { SiteConfig } from "@uptime-status/domain";
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+type Props = {
+  site: SiteConfig;
+  title: string;
+  message: string;
+};
+
+const { site, title, message } = Astro.props;
+const hasAction = Astro.slots.has("action");
+---
+
+<BaseLayout title={`${title} | ${site.displayName} status`} description={message} locale={site.locale}>
+  <main id="main-content" class="subscription-outcome">
+    <p class="eyebrow">Status notifications</p>
+    <h1>{title}</h1>
+    <p>{message}</p>
+    {hasAction && <div class="subscription-outcome-action"><slot name="action" /></div>}
+    <a href="/">Return to current status</a>
+  </main>
+</BaseLayout>

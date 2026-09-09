@@ -1,0 +1,8 @@
+---
+import StatusShell from "../components/StatusShell.astro";
+import { siteVariant } from "../lib/build-data";
+
+const variant = siteVariant();
+---
+
+<StatusShell {variant} />

@@ -1,0 +1,15 @@
+---
+import SubscriptionOutcome from "../../components/SubscriptionOutcome.astro";
+import { site } from "../../lib/build-data";
+---
+
+<SubscriptionOutcome
+  {site}
+  title="Stop status emails?"
+  message="Confirm that you no longer want incident and maintenance updates from this status page."
+>
+  <form slot="action" method="post" action="/api/v1/subscriptions/unsubscribe">
+    <input type="hidden" name="intent" value="unsubscribe" />
+    <button type="submit">Unsubscribe</button>
+  </form>
+</SubscriptionOutcome>

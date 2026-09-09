@@ -1,0 +1,60 @@
+---
+import SiteHeader from "../components/SiteHeader.astro";
+import SubscribeDialog from "../components/SubscribeDialog.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { snapshot, site } from "../lib/build-data";
+
+const componentNames = new Map(
+  snapshot.components.map((component) => [component.slug, component.name]),
+);
+const formatter = new Intl.DateTimeFormat(site.locale, {
+  dateStyle: "full",
+  timeStyle: "short",
+  timeZone: site.timeZone,
+});
+
+function durationMinutes(startsAt: string, endsAt: string) {
+  return Math.max(1, Math.round((Date.parse(endsAt) - Date.parse(startsAt)) / 60_000));
+}
+---
+
+<BaseLayout title={`Planned work | ${site.displayName}`} description={`Planned work affecting ${site.displayName}.`} locale={site.locale}>
+  <div class="page-shell">
+    <SiteHeader active="maintenance" {site} />
+    <main id="main-content" class="subpage-main">
+      <header class="subpage-heading">
+        <p class="eyebrow">Planned work</p>
+        <h1>Planned maintenance</h1>
+        <p>See planned work, affected services, and timing.</p>
+      </header>
+      {snapshot.scheduledMaintenance.length === 0 ? (
+        <p class="empty-state">No maintenance is currently planned.</p>
+      ) : snapshot.scheduledMaintenance.map((maintenance, index) => (
+        <section class="maintenance-record" aria-labelledby={`maintenance-record-title-${index}`}>
+          <div class="maintenance-status">
+            <span class="state-label text-maintenance">{maintenance.state}</span>
+            <span>{durationMinutes(maintenance.startsAt, maintenance.endsAt)} minutes</span>
+          </div>
+          <div>
+            <h2 id={`maintenance-record-title-${index}`}>{maintenance.title}</h2>
+            <p>{maintenance.expectedImpact}</p>
+            <dl class="maintenance-grid">
+              <div>
+                <dt>Start in your timezone</dt>
+                <dd><time datetime={maintenance.startsAt} data-local-time>{formatter.format(new Date(maintenance.startsAt))}</time></dd>
+              </div>
+              <div>
+                <dt>End in your timezone</dt>
+                <dd><time datetime={maintenance.endsAt} data-local-time>{formatter.format(new Date(maintenance.endsAt))}</time></dd>
+              </div>
+              <div><dt>Scheduled in</dt><dd>{maintenance.sourceTimeZone}</dd></div>
+              <div><dt>Affected components</dt><dd>{maintenance.affectedComponents.map((slug) => componentNames.get(slug) ?? slug).join(", ")}</dd></div>
+            </dl>
+          </div>
+        </section>
+      ))}
+    </main>
+  </div>
+  <SubscribeDialog {site} />
+  <script is:inline src="/scripts/local-times.js"></script>
+</BaseLayout>

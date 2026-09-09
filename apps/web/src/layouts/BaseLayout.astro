@@ -1,0 +1,31 @@
+---
+import "../styles/global.css";
+
+type Props = {
+  title: string;
+  description: string;
+  locale?: string;
+};
+
+const { title, description, locale = "en" } = Astro.props;
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="description" content={description} />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f5f7f4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#101513" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href="/site-assets/favicon/" />
+    <link rel="stylesheet" href="/site-theme.css" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to status content</a>
+    <slot />
+  </body>
+</html>

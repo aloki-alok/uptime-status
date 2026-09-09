@@ -1,0 +1,55 @@
+---
+import type { SiteConfig } from "@uptime-status/domain";
+
+type Props = {
+  site: SiteConfig;
+};
+
+const { site } = Astro.props;
+const enabled = site.subscriptions.enabled;
+---
+
+<dialog
+  class="subscribe-dialog"
+  data-subscribe-dialog
+  aria-labelledby="subscribe-title"
+  aria-describedby="subscribe-description"
+>
+  <form method="dialog">
+    <button class="dialog-close" type="submit" aria-label="Close subscription dialog">Close</button>
+  </form>
+  <div class="dialog-copy">
+    <p class="eyebrow">Status notifications</p>
+    <h2 id="subscribe-title">Get status updates</h2>
+    <p id="subscribe-description">
+      {enabled
+        ? `Receive important incident and maintenance updates from ${site.displayName}.`
+        : "Email updates are not available yet. This form does not collect your address."}
+    </p>
+  </div>
+  <form class="subscribe-form" data-subscribe-form={enabled ? "enabled" : undefined}>
+    <label for="preview-email">Email address</label>
+    <div class="field-row">
+      <input
+        id="preview-email"
+        name="email"
+        type="email"
+        autocomplete="email"
+        spellcheck="false"
+        placeholder="you@company.com"
+        maxlength="254"
+        required
+        disabled={!enabled}
+      />
+      <button type="submit" disabled={!enabled}>{enabled ? "Subscribe" : "Not available yet"}</button>
+    </div>
+    {enabled && <p class="form-status" data-subscribe-status role="status" aria-live="polite"></p>}
+    <p class="form-note">
+      {enabled
+        ? "Confirm your address from the email we send. Every update includes an unsubscribe link."
+        : "When updates become available, you will confirm your address before receiving email. Every message will include an unsubscribe link."}
+    </p>
+  </form>
+</dialog>
+
+<script is:inline src="/scripts/subscribe-dialog.js"></script>

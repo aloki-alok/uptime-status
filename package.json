@@ -1,0 +1,33 @@
+{
+  "name": "uptime-status",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "bun@1.3.14",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun --cwd apps/web dev",
+    "dev:api": "bun --cwd apps/api dev",
+    "status": "bun packages/cli/src/index.ts",
+    "build": "bun --cwd apps/web build",
+    "lint": "bunx biome check .",
+    "lint:fix": "bunx biome check --write .",
+    "format": "bunx biome format --write .",
+    "format:check": "bunx biome format .",
+    "typecheck": "bun --cwd apps/web check && bunx tsc --noEmit -p apps/api/tsconfig.json && bunx tsc --noEmit -p packages/status-contract/tsconfig.json && bunx tsc --noEmit -p packages/cli/tsconfig.json && bunx tsc --noEmit -p packages/aws-infrastructure/tsconfig.json && bunx tsc --noEmit -p packages/email/tsconfig.json && bunx tsc --noEmit -p packages/history-import/tsconfig.json",
+    "test": "bun test",
+    "test:layout": "bun scripts/verify-test-layout.ts",
+    "test:sites": "bun scripts/verify-site-builds.ts",
+    "test:e2e": "bunx playwright test",
+    "check": "bun run lint && bun run test:layout && bun run typecheck && bun test && bun run test:sites && bun run build",
+    "check:all": "bun run check && bun run test:e2e"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.12",
+    "@playwright/test": "1.63.0",
+    "@types/bun": "1.4.1",
+    "typescript": "5.9.3"
+  }
+}

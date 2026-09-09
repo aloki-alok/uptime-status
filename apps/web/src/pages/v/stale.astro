@@ -1,0 +1,21 @@
+---
+import { createStatusFixture } from "@uptime-status/domain";
+import StatusShell from "../../components/StatusShell.astro";
+import { site } from "../../lib/build-data";
+
+const snapshot = createStatusFixture({
+  site,
+  generatedAt: "2026-09-07T10:00:00.000Z",
+  latestCheckAt: "2026-09-07T09:59:36.000Z",
+});
+snapshot.components[0].responseTimeMs = null;
+snapshot.components[0].history[0] = {
+  ...snapshot.components[0].history[0],
+  state: "unknown",
+  severity: "unknown",
+  uptime: null,
+  avgMs: null,
+};
+---
+
+<StatusShell variant="ledger" {snapshot} liveUpdates={false} />

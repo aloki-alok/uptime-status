@@ -1,0 +1,58 @@
+---
+import SiteHeader from "../components/SiteHeader.astro";
+import SubscribeDialog from "../components/SubscribeDialog.astro";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { snapshot, site } from "../lib/build-data";
+
+const incidents = [
+  ...snapshot.activeIncidents,
+  ...snapshot.recentEvents.filter((event) => "startedAt" in event),
+];
+const componentNames = new Map(
+  snapshot.components.map((component) => [component.slug, component.name]),
+);
+const day = new Intl.DateTimeFormat(site.locale, {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  timeZone: site.timeZone,
+});
+
+function durationMinutes(startedAt: string, resolvedAt?: string) {
+  const end = resolvedAt ? Date.parse(resolvedAt) : Date.parse(snapshot.generatedAt);
+  return Math.max(1, Math.round((end - Date.parse(startedAt)) / 60_000));
+}
+---
+
+<BaseLayout title={`Past incidents | ${site.displayName}`} description={`Recent incidents affecting ${site.displayName}.`} locale={site.locale}>
+  <div class="page-shell">
+    <SiteHeader active="history" {site} />
+    <main id="main-content" class="subpage-main">
+      <header class="subpage-heading">
+        <p class="eyebrow">Service record</p>
+        <h1>Past incidents</h1>
+        <p>See recent incidents and how they were resolved.</p>
+      </header>
+      <section class="history-list" aria-label="Past incidents">
+        {incidents.length === 0 ? (
+          <p class="empty-state">No incidents have been published.</p>
+        ) : incidents.map((incident) => (
+          <article class:list={["event-record", incident.state === "resolved" && "muted-record"]}>
+            <div class="event-date"><time datetime={incident.startedAt}>{day.format(new Date(incident.startedAt))}</time></div>
+            <div>
+              <span class:list={["state-label", incident.state !== "resolved" && `text-${incident.impact}`]}>{incident.state.replaceAll("_", " ")}</span>
+              <h2><a href={`/incidents/${incident.slug}/`}>{incident.title}</a></h2>
+              <p>{incident.updates.at(-1)?.message}</p>
+              <dl class="event-meta">
+                <div><dt>Impact</dt><dd>{incident.impact.replaceAll("_", " ")}</dd></div>
+                <div><dt>Affected</dt><dd>{incident.affectedComponents.map((slug) => componentNames.get(slug) ?? slug).join(", ")}</dd></div>
+                <div><dt>Duration</dt><dd>{durationMinutes(incident.startedAt, incident.resolvedAt)} minutes</dd></div>
+              </dl>
+            </div>
+          </article>
+        ))}
+      </section>
+    </main>
+  </div>
+  <SubscribeDialog {site} />
+</BaseLayout>

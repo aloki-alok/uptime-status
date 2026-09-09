@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 72" role="img" aria-labelledby="title">
+  <title id="title">Northwind Cloud</title>
+  <circle cx="36" cy="36" r="34" fill="#dbeaff"/>
+  <path d="M18 39c11-14 25-19 39-15-12 3-20 9-25 18 8-4 15-5 22-3-10 3-18 8-24 15z" fill="#173a63"/>
+  <text x="86" y="46" fill="#f4f8fb" font-family="system-ui, sans-serif" font-size="27" font-weight="650">Northwind Cloud</text>
+</svg>

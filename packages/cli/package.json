@@ -1,0 +1,18 @@
+{
+  "name": "@uptime-status/cli",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "uptime-status": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "bunx tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "0.34.52",
+    "@uptime-status/domain": "workspace:*",
+    "@uptime-status/history-import": "workspace:*"
+  }
+}

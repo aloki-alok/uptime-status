@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-labelledby="title">
+  <title id="title">Example Service</title>
+  <rect width="72" height="72" rx="18" fill="#101513"/>
+  <path d="M22 23h30v8H31v6h18v8H31v6h21v8H22z" fill="#f7faf8"/>
+</svg>

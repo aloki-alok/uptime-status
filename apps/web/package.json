@@ -1,0 +1,17 @@
+{
+  "name": "@uptime-status/web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "bun src/build.ts",
+    "check": "astro check",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/check": "0.9.10",
+    "@uptime-status/domain": "workspace:*",
+    "astro": "7.3.1"
+  }
+}

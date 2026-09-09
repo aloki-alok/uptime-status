@@ -1,0 +1,12 @@
+{
+  "name": "@uptime-status/domain",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "0.34.52"
+  }
+}

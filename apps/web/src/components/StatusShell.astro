@@ -1,0 +1,34 @@
+---
+import type { StatusSnapshot } from "@uptime-status/domain";
+import { snapshot as buildSnapshot, site } from "../lib/build-data";
+import BaseLayout from "../layouts/BaseLayout.astro";
+import SiteHeader from "./SiteHeader.astro";
+import StatusOverview from "./StatusOverview.astro";
+import SubscribeDialog from "./SubscribeDialog.astro";
+
+type Props = {
+  variant: "ledger" | "signal" | "brief";
+  showReviewRail?: boolean;
+  snapshot?: StatusSnapshot;
+  liveUpdates?: boolean;
+};
+
+const { variant, showReviewRail = false, snapshot = buildSnapshot, liveUpdates = true } = Astro.props;
+---
+
+<BaseLayout
+  title={`${site.displayName} status`}
+  description={`Current availability, incidents, and maintenance for ${site.displayName}.`}
+  locale={site.locale}
+>
+  <div class="page-shell">
+    <SiteHeader {site} />
+    <StatusOverview {snapshot} {site} {variant} {showReviewRail} />
+    <footer class="site-footer">
+      <span>© {new Date().getUTCFullYear()} {site.legalName}</span>
+      <a href={site.brand.homeUrl}>{new URL(site.brand.homeUrl).hostname}</a>
+    </footer>
+  </div>
+  <SubscribeDialog {site} />
+  {liveUpdates && <script is:inline src="/scripts/live-status.js"></script>}
+</BaseLayout>

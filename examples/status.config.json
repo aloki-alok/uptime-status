@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "1.0.0",
+  "deploymentMode": "example",
+  "siteId": "example-service",
+  "displayName": "Example Service",
+  "legalName": "Example Service",
+  "locale": "en",
+  "timeZone": "UTC",
+  "domains": {
+    "primary": "status.example.com"
+  },
+  "brand": {
+    "homeUrl": "https://example.com",
+    "logoLightPath": "./assets/logo-light.svg",
+    "logoDarkPath": "./assets/logo-dark.svg",
+    "iconLightPath": "./assets/icon-light.svg",
+    "iconDarkPath": "./assets/icon-dark.svg",
+    "faviconPath": "./assets/favicon.svg",
+    "logoAlt": "Example Service"
+  },
+  "presentation": {
+    "bannerVariant": "classic",
+    "statusCopy": {
+      "operational": "All systems operational",
+      "degraded": "Some systems are degraded",
+      "partialOutage": "Some services are unavailable",
+      "majorOutage": "Major service outage",
+      "maintenance": "Maintenance in progress",
+      "unknown": "Status data is delayed"
+    },
+    "semanticColors": {
+      "operational": "#16805c",
+      "maintenance": "#2f6feb",
+      "degraded": "#a56712",
+      "outage": "#b7433c",
+      "unknown": "#65716e"
+    }
+  },
+  "monitoring": {
+    "pollIntervalSeconds": 60,
+    "staleAfterSeconds": 120,
+    "sources": [
+      {
+        "sourceId": "sample",
+        "adapter": "fixture",
+        "fixture": "generated"
+      }
+    ]
+  },
+  "components": [
+    {
+      "componentId": "public-api",
+      "name": "Public API",
+      "group": "Services",
+      "sourceId": "sample",
+      "monitorRef": "public-api",
+      "showLatency": true
+    },
+    {
+      "componentId": "website",
+      "name": "Website",
+      "group": "Web",
+      "sourceId": "sample",
+      "monitorRef": "website",
+      "showLatency": false
+    }
+  ],
+  "subscriptions": {
+    "enabled": false,
+    "disabledReason": "example-deployment",
+    "doubleOptIn": true
+  }
+}
