@@ -92,7 +92,7 @@ export const ComponentSchema = Type.Object(
     latestObservedAt: Type.String({ format: "date-time" }),
     responseTimeMs: Type.Union([Type.Number({ minimum: 0 }), Type.Null()]),
     latency: Type.Union([
-      Type.Array(LatencyPointSchema, { minItems: 12, maxItems: 120 }),
+      Type.Array(LatencyPointSchema, { minItems: 1, maxItems: 120 }),
       Type.Null(),
     ]),
     history: Type.Array(DailyStatusSchema, { minItems: 90, maxItems: 90 }),
@@ -244,7 +244,7 @@ export function validateStatusSnapshot(input: unknown): input is StatusSnapshot 
       isUnique(historyDates) &&
       isStrictlyChronological(historyDates, 86_400_000) &&
       (component.latency === null ||
-        (isStrictlyChronological(latencyTimes, 60_000) &&
+        (isStrictlyChronological(latencyTimes) &&
           Date.parse(latencyTimes.at(-1) ?? input.generatedAt) <= generatedAt))
     );
   });

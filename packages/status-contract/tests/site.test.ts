@@ -120,6 +120,40 @@ describe("site configuration", () => {
     expect(validateSiteConfig({ ...example, deploymentMode: "production" })).toBe(false);
   });
 
+  test("accepts a direct HTTPS source in production and rejects unsafe targets", () => {
+    const source = {
+      sourceId: "website",
+      adapter: "https",
+      url: "https://example.com/health",
+      timeoutMs: 10_000,
+    } as const;
+    expect(
+      validateSiteConfig({
+        ...example,
+        deploymentMode: "production",
+        monitoring: { ...example.monitoring, sources: [source] },
+        components: example.components.map((component) => ({
+          ...component,
+          sourceId: source.sourceId,
+        })),
+      }),
+    ).toBe(true);
+    expect(
+      validateSiteConfig({
+        ...example,
+        deploymentMode: "production",
+        monitoring: {
+          ...example.monitoring,
+          sources: [{ ...source, url: "https://user:secret@example.com/health" }],
+        },
+        components: example.components.map((component) => ({
+          ...component,
+          sourceId: source.sourceId,
+        })),
+      }),
+    ).toBe(false);
+  });
+
   test("requires complete mail configuration before subscriptions can enable", () => {
     expect(
       validateSiteConfig({
@@ -238,6 +272,27 @@ describe("site configuration", () => {
             maintenanceEmoticon: ":)",
             resolvedEmoticon: "^_^",
             signOff: "The Example Service team",
+          },
+          confirmationTtlSeconds: 86_400,
+          resendCooldownSeconds: 900,
+        },
+      }),
+    ).toBe(true);
+  });
+
+  test("accepts Resend through a secret reference", () => {
+    expect(
+      validateSiteConfig({
+        ...example,
+        subscriptions: {
+          enabled: true,
+          doubleOptIn: true,
+          notificationFanoutEnabled: false,
+          delivery: {
+            provider: "resend",
+            connection: { provider: "environment", reference: "RESEND_API_KEY" },
+            senderName: "Example Service status",
+            senderEmail: "status@example.com",
           },
           confirmationTtlSeconds: 86_400,
           resendCooldownSeconds: 900,

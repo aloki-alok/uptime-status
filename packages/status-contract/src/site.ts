@@ -47,6 +47,16 @@ const UptimeKumaSourceSchema = Type.Object(
   { additionalProperties: false },
 );
 
+const HttpsSourceSchema = Type.Object(
+  {
+    sourceId: SlugSchema,
+    adapter: Type.Literal("https"),
+    url: HttpsUrlSchema,
+    timeoutMs: Type.Optional(Type.Integer({ minimum: 100, maximum: 60_000 })),
+  },
+  { additionalProperties: false },
+);
+
 const FixtureSourceSchema = Type.Object(
   {
     sourceId: SlugSchema,
@@ -104,6 +114,14 @@ const EmailDeliverySchema = Type.Union([
   Type.Object(
     {
       provider: Type.Literal("smtp"),
+      connection: SecretReferenceSchema,
+      ...SenderFields,
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      provider: Type.Literal("resend"),
       connection: SecretReferenceSchema,
       ...SenderFields,
     },
@@ -248,9 +266,12 @@ export const SiteConfigSchema = Type.Object(
       {
         pollIntervalSeconds: Type.Integer({ minimum: 30, maximum: 300 }),
         staleAfterSeconds: Type.Integer({ minimum: 60, maximum: 900 }),
-        sources: Type.Array(Type.Union([UptimeKumaSourceSchema, FixtureSourceSchema]), {
-          minItems: 1,
-        }),
+        sources: Type.Array(
+          Type.Union([UptimeKumaSourceSchema, HttpsSourceSchema, FixtureSourceSchema]),
+          {
+            minItems: 1,
+          },
+        ),
       },
       { additionalProperties: false },
     ),
@@ -376,6 +397,14 @@ export function siteConfigIssues(input: unknown): SiteConfigIssue[] {
   if (config.community && !isHttpsUrl(config.community.url)) {
     add("/community/url", "must be an HTTPS URL without credentials, query, or fragment");
   }
+  config.monitoring.sources.forEach((source, index) => {
+    if (source.adapter === "https" && !isHttpsUrl(source.url)) {
+      add(
+        `/monitoring/sources/${index}/url`,
+        "must be an HTTPS URL without credentials, query, or fragment",
+      );
+    }
+  });
 
   const paths: Array<[string, string]> = [
     ["/brand/logoLightPath", config.brand.logoLightPath],
@@ -434,7 +463,10 @@ export function siteConfigIssues(input: unknown): SiteConfigIssue[] {
       "/subscriptions/delivery/senderName",
       config.subscriptions.delivery.senderName ?? config.displayName,
     ]);
-    if (config.subscriptions.delivery.provider === "smtp") {
+    if (
+      config.subscriptions.delivery.provider === "smtp" ||
+      config.subscriptions.delivery.provider === "resend"
+    ) {
       textValues.push([
         "/subscriptions/delivery/connection/reference",
         config.subscriptions.delivery.connection.reference,
