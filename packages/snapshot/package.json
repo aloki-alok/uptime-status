@@ -7,10 +7,12 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "build:lambda": "bun build src/aws-handler.ts --target=node --outfile=dist/index.mjs",
     "test": "bun test",
     "typecheck": "bunx tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1128.0",
     "@uptime-status/domain": "workspace:*"
   }
 }

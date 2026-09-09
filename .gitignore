@@ -1,6 +1,7 @@
 node_modules/
 .astro/
 dist/
+cdk.out/
 coverage/
 playwright-report/
 test-results/

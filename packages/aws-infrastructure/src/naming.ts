@@ -26,7 +26,9 @@ function bounded(value: string, maximum: number) {
   return `${value.slice(0, maximum - suffix.length - 1)}-${suffix}`;
 }
 
-export function createDeploymentNames(input: DeploymentInputs): DeploymentNames {
+export function createDeploymentNames(
+  input: Pick<DeploymentInputs, "siteId" | "environment" | "aws">,
+): DeploymentNames {
   const base = `uptime-status-${input.siteId}-${input.environment}`;
   const unique = `${base}-${input.aws.accountId}-${input.aws.region}`;
 

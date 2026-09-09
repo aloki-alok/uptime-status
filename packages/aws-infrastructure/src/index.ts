@@ -32,3 +32,9 @@ export type { DeploymentNames } from "./naming";
 export { createDeploymentNames } from "./naming";
 export type { DeploymentStage, DeploymentStageId } from "./plan";
 export { createDeploymentPlan, deploymentIsReady } from "./plan";
+export type {
+  PublisherComponent,
+  ReadPathDeploymentInputs,
+  ReadPathStackProps,
+} from "./read-path-stack";
+export { createReadPathApp, ReadPathStack } from "./read-path-stack";

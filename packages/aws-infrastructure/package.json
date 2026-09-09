@@ -9,5 +9,9 @@
   "scripts": {
     "test": "bun test",
     "typecheck": "bunx tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "2.268.0",
+    "constructs": "10.8.1"
   }
 }

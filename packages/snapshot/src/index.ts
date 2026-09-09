@@ -1,3 +1,4 @@
+export { createAwsSnapshotHandler } from "./aws-handler";
 export type {
   ProbeComponent,
   ProbePublisherDependencies,
