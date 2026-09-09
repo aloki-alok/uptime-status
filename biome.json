@@ -9,10 +9,12 @@
       "**/*.css",
       "**/*.json",
       "!**/dist",
+      "!**/cdk.out",
       "!**/.astro",
       "!**/node_modules",
       "!**/playwright-report",
-      "!**/test-results"
+      "!**/test-results",
+      "!**/worker-env.d.ts"
     ]
   },
   "formatter": {

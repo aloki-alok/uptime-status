@@ -1,0 +1,14 @@
+{
+  "name": "@uptime-status/cloudflare-worker",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "bun build src/index.ts --target=browser --outfile=dist/index.js",
+    "typecheck": "bunx tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@uptime-status/domain": "workspace:*",
+    "@uptime-status/snapshot": "workspace:*"
+  }
+}

@@ -16,7 +16,7 @@
     "lint:fix": "bunx biome check --write .",
     "format": "bunx biome format --write .",
     "format:check": "bunx biome format .",
-    "typecheck": "bun --cwd apps/web check && bunx tsc --noEmit -p apps/api/tsconfig.json && bunx tsc --noEmit -p packages/status-contract/tsconfig.json && bunx tsc --noEmit -p packages/cli/tsconfig.json && bunx tsc --noEmit -p packages/aws-infrastructure/tsconfig.json && bunx tsc --noEmit -p packages/email/tsconfig.json && bunx tsc --noEmit -p packages/history-import/tsconfig.json && bunx tsc --noEmit -p packages/snapshot/tsconfig.json",
+    "typecheck": "bun --cwd apps/web check && bunx tsc --noEmit -p apps/api/tsconfig.json && bunx tsc --noEmit -p apps/cloudflare-worker/tsconfig.json && bunx tsc --noEmit -p packages/status-contract/tsconfig.json && bunx tsc --noEmit -p packages/cli/tsconfig.json && bunx tsc --noEmit -p packages/aws-infrastructure/tsconfig.json && bunx tsc --noEmit -p packages/email/tsconfig.json && bunx tsc --noEmit -p packages/history-import/tsconfig.json && bunx tsc --noEmit -p packages/snapshot/tsconfig.json",
     "test": "bun test",
     "test:layout": "bun scripts/verify-test-layout.ts",
     "test:sites": "bun scripts/verify-site-builds.ts",
@@ -26,8 +26,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
+    "@cloudflare/workers-types": "5.20260908.1",
     "@playwright/test": "1.63.0",
     "@types/bun": "1.4.1",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "wrangler": "4.130.0"
   }
 }
