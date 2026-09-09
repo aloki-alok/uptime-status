@@ -2,6 +2,8 @@
 
 A reusable customer-facing status platform. The repository currently includes a validated site contract, static Astro status UI, Bun setup CLI, tested double opt-in and scanner-safe unsubscribe lifecycle foundations, provider-neutral mail rendering, an offline Uptime Kuma 2.2 SQLite history extractor, and AWS deployment planning contracts. Cloud resources, live monitoring adapters, durable history and subscriber storage, mail transports, and queue workers are not implemented yet.
 
+See the [visual review](docs/visual-review.md) for light and dark screenshots, supported public states, and the interface review checklist.
+
 ## Local development
 
 Requires Bun 1.3.14 or the version pinned in `packageManager`.
