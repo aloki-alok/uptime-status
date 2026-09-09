@@ -16,7 +16,7 @@
     "lint:fix": "bunx biome check --write .",
     "format": "bunx biome format --write .",
     "format:check": "bunx biome format .",
-    "typecheck": "bun --cwd apps/web check && bunx tsc --noEmit -p apps/api/tsconfig.json && bunx tsc --noEmit -p packages/status-contract/tsconfig.json && bunx tsc --noEmit -p packages/cli/tsconfig.json && bunx tsc --noEmit -p packages/aws-infrastructure/tsconfig.json && bunx tsc --noEmit -p packages/email/tsconfig.json && bunx tsc --noEmit -p packages/history-import/tsconfig.json",
+    "typecheck": "bun --cwd apps/web check && bunx tsc --noEmit -p apps/api/tsconfig.json && bunx tsc --noEmit -p packages/status-contract/tsconfig.json && bunx tsc --noEmit -p packages/cli/tsconfig.json && bunx tsc --noEmit -p packages/aws-infrastructure/tsconfig.json && bunx tsc --noEmit -p packages/email/tsconfig.json && bunx tsc --noEmit -p packages/history-import/tsconfig.json && bunx tsc --noEmit -p packages/snapshot/tsconfig.json",
     "test": "bun test",
     "test:layout": "bun scripts/verify-test-layout.ts",
     "test:sites": "bun scripts/verify-site-builds.ts",

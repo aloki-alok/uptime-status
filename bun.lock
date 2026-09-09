@@ -58,6 +58,13 @@
         "@uptime-status/domain": "workspace:*",
       },
     },
+    "packages/snapshot": {
+      "name": "@uptime-status/snapshot",
+      "version": "0.1.0",
+      "dependencies": {
+        "@uptime-status/domain": "workspace:*",
+      },
+    },
     "packages/status-contract": {
       "name": "@uptime-status/domain",
       "version": "0.1.0",
@@ -378,6 +385,8 @@
     "@uptime-status/email": ["@uptime-status/email@workspace:packages/email"],
 
     "@uptime-status/history-import": ["@uptime-status/history-import@workspace:packages/history-import"],
+
+    "@uptime-status/snapshot": ["@uptime-status/snapshot@workspace:packages/snapshot"],
 
     "@uptime-status/web": ["@uptime-status/web@workspace:apps/web"],
 
