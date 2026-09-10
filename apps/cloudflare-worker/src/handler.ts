@@ -39,6 +39,28 @@ export function createWorker(fetcher: typeof globalThis.fetch = globalThis.fetch
       if (url.pathname === "/runtime/site-config.json") {
         return secured(new Response("Not found", { status: 404 }));
       }
+      if (url.pathname === "/current.json") {
+        let snapshot = await env.STATUS.get(currentKey(env.SITE_ID), "json");
+        if (!validateStatusSnapshot(snapshot)) {
+          return secured(
+            Response.json(
+              { error: "status-initializing" },
+              { status: 503, headers: { "cache-control": "no-store" } },
+            ),
+          );
+        }
+        if (refreshDue(snapshot, env.POLL_INTERVAL_SECONDS)) {
+          snapshot = (await runPublisher(env, fetcher)).snapshot;
+        }
+        return secured(
+          new Response(`${JSON.stringify(snapshot)}\n`, {
+            headers: {
+              "cache-control": "no-cache, no-store, must-revalidate",
+              "content-type": "application/json; charset=utf-8",
+            },
+          }),
+        );
+      }
       const runtimeConfigured = hasSubscriptionRuntime(env as unknown as Record<string, unknown>);
       if (url.pathname === "/api/v1/webhooks/resend") {
         if (!runtimeConfigured) {
@@ -92,28 +114,7 @@ export function createWorker(fetcher: typeof globalThis.fetch = globalThis.fetch
           );
         }
       }
-      if (url.pathname !== "/current.json") return secured(await env.ASSETS.fetch(request));
-
-      let snapshot = await env.STATUS.get(currentKey(env.SITE_ID), "json");
-      if (!validateStatusSnapshot(snapshot)) {
-        return secured(
-          Response.json(
-            { error: "status-initializing" },
-            { status: 503, headers: { "cache-control": "no-store" } },
-          ),
-        );
-      }
-      if (refreshDue(snapshot, env.POLL_INTERVAL_SECONDS)) {
-        snapshot = (await runPublisher(env, fetcher)).snapshot;
-      }
-      return secured(
-        new Response(`${JSON.stringify(snapshot)}\n`, {
-          headers: {
-            "cache-control": "no-cache, no-store, must-revalidate",
-            "content-type": "application/json; charset=utf-8",
-          },
-        }),
-      );
+      return secured(await env.ASSETS.fetch(request));
     },
 
     async scheduled(_controller, env): Promise<void> {

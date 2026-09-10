@@ -68,6 +68,27 @@ describe("Cloudflare status worker", () => {
     );
   });
 
+  test("serves current status without touching subscription infrastructure", async () => {
+    const kv = new MemoryKv();
+    await runPublisher(testEnv(kv), async () => new Response("ok", { status: 200 }));
+    const env = new Proxy(testEnv(kv), {
+      get(target, property, receiver) {
+        if (typeof property === "string" && property.startsWith("SUBSCRIPTION")) {
+          throw new Error(`Status reads must not access ${property}`);
+        }
+        return Reflect.get(target, property, receiver);
+      },
+    });
+
+    const response = await worker.fetch(
+      new Request("https://status.example.com/current.json"),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect((await response.json()).schemaVersion).toBe("1.0.0");
+  });
+
   test("keeps runtime configuration private and fails closed without subscription bindings", async () => {
     const env = testEnv();
     const internal = await worker.fetch(
