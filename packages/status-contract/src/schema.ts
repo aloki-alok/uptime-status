@@ -78,7 +78,7 @@ export const LatencyPointSchema = Type.Object(
   {
     observedAt: Type.String({ format: "date-time" }),
     avgMs: Type.Number({ minimum: 0 }),
-    p95Ms: Type.Number({ minimum: 0 }),
+    sampleCount: Type.Integer({ minimum: 1 }),
   },
   { additionalProperties: false },
 );

@@ -79,8 +79,8 @@ describe("HTTPS probe snapshot publisher", () => {
     });
 
     expect(second.snapshot.components[0]?.latency).toEqual([
-      { observedAt: "2026-09-09T10:00:00.000Z", avgMs: 80, p95Ms: 80 },
-      { observedAt: "2026-09-09T10:02:00.000Z", avgMs: 140, p95Ms: 140 },
+      { observedAt: "2026-09-09T10:00:00.000Z", avgMs: 80, sampleCount: 1 },
+      { observedAt: "2026-09-09T10:02:00.000Z", avgMs: 140, sampleCount: 1 },
     ]);
     expect(validateStatusSnapshot(second.snapshot)).toBe(true);
   });

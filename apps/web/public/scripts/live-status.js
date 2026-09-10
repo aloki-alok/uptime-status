@@ -131,7 +131,8 @@ function isLatencyPoint(point) {
     isRecord(point) &&
     isTimestamp(point.observedAt) &&
     isFiniteNonNegative(point.avgMs) &&
-    isFiniteNonNegative(point.p95Ms)
+    Number.isSafeInteger(point.sampleCount) &&
+    point.sampleCount >= 1
   );
 }
 

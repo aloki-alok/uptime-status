@@ -49,7 +49,7 @@ function createLatency(endDate: Date, baseline: number, seed: number) {
     return {
       observedAt: new Date(endDate.getTime() - (59 - index) * 60_000).toISOString(),
       avgMs,
-      p95Ms: Math.round(avgMs * 1.24 + 9),
+      sampleCount: 1,
     };
   });
 }

@@ -30,3 +30,9 @@ export {
   SubscriptionAcceptedSchema,
 } from "./subscription";
 export { deriveOverallStatus, isSnapshotFresh, STALE_AFTER_MS } from "./truth";
+export type { UptimeKumaExport } from "./uptime-kuma-export";
+export {
+  UptimeKumaExportSchema,
+  uptimeKumaSourceRevision,
+  validateUptimeKumaExport,
+} from "./uptime-kuma-export";

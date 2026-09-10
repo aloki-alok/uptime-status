@@ -54,8 +54,8 @@ const bundle = createHistoryImportBundle({
         },
       ],
       latency: [
-        { observedAt: "2026-09-08T09:58:00Z", avgMs: 118, p95Ms: 149 },
-        { observedAt: "2026-09-08T09:59:00Z", avgMs: 120, p95Ms: 151 },
+        { observedAt: "2026-09-08T09:58:00Z", avgMs: 118, sampleCount: 1 },
+        { observedAt: "2026-09-08T09:59:00Z", avgMs: 120, sampleCount: 1 },
       ],
     },
   ],
@@ -111,7 +111,7 @@ describe("history import bundle", () => {
           components: [
             {
               ...bundle.components[0],
-              latency: [{ observedAt: "2026-09-09T10:01:00Z", avgMs: 120, p95Ms: 151 }],
+              latency: [{ observedAt: "2026-09-09T10:01:00Z", avgMs: 120, sampleCount: 1 }],
             },
           ],
         }),
@@ -138,8 +138,8 @@ describe("history import bundle", () => {
             {
               ...bundle.components[0],
               latency: [
-                { observedAt: "2026-09-08T10:00:00+01:00", avgMs: 118, p95Ms: 149 },
-                { observedAt: "2026-09-08T09:30:00Z", avgMs: 120, p95Ms: 151 },
+                { observedAt: "2026-09-08T10:00:00+01:00", avgMs: 118, sampleCount: 1 },
+                { observedAt: "2026-09-08T09:30:00Z", avgMs: 120, sampleCount: 1 },
               ],
             },
           ],
@@ -154,8 +154,8 @@ describe("history import bundle", () => {
             {
               ...bundle.components[0],
               latency: [
-                { observedAt: "2026-09-08T09:30:00Z", avgMs: 118, p95Ms: 149 },
-                { observedAt: "2026-09-08T10:00:00+01:00", avgMs: 120, p95Ms: 151 },
+                { observedAt: "2026-09-08T09:30:00Z", avgMs: 118, sampleCount: 1 },
+                { observedAt: "2026-09-08T10:00:00+01:00", avgMs: 120, sampleCount: 1 },
               ],
             },
           ],

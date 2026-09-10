@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./snapshot": "./src/snapshot.ts"
+    "./snapshot": "./src/snapshot.ts",
+    "./uptime-kuma-export": "./src/uptime-kuma-export.ts"
   },
   "dependencies": {
     "@sinclair/typebox": "0.34.52"

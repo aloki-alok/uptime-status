@@ -147,7 +147,7 @@ function latencyHistory(
   const previous = (current?.components[0]?.latency ?? []).filter(
     (point) => Date.parse(point.observedAt) >= cutoff && Date.parse(point.observedAt) <= bucketTime,
   );
-  const point = { observedAt: bucketAt, avgMs: responseTimeMs, p95Ms: responseTimeMs };
+  const point = { observedAt: bucketAt, avgMs: responseTimeMs, sampleCount: 1 };
 
   if (previous.at(-1)?.observedAt === bucketAt) {
     return [...previous.slice(0, -1), point];

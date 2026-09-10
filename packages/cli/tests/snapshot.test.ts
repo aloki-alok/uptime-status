@@ -87,7 +87,7 @@ describe("snapshot probe command", () => {
 
     expect(validateStatusSnapshot(snapshot)).toBe(true);
     expect(result.snapshot.components[0].latency).toEqual([
-      { observedAt: "2026-09-09T12:00:00.000Z", avgMs: 125, p95Ms: 125 },
+      { observedAt: "2026-09-09T12:00:00.000Z", avgMs: 125, sampleCount: 1 },
     ]);
     expect(
       snapshot.components[0].history.slice(0, -1).every((day) => day.state === "unknown"),
