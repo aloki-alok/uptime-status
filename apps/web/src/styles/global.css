@@ -27,8 +27,9 @@
   --status-on-unknown: #ffffff;
   --radius: 10px;
   --content-gutter: 42px;
-  --sans: "Avenir Next", Avenir, "Helvetica Neue", Helvetica, sans-serif;
-  --mono: "SFMono-Regular", "SF Mono", "Roboto Mono", Consolas, monospace;
+  --typeface: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --sans: var(--typeface);
+  --mono: var(--typeface);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -776,7 +777,7 @@ dd,
 }
 
 .variant-ledger .state-lead h1 {
-  font-family: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+  font-family: var(--sans);
 }
 
 .variant-signal .state-hero {
@@ -824,7 +825,7 @@ dd,
 
 .variant-brief .state-lead h1 {
   color: var(--status-color);
-  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: var(--sans);
   font-weight: 500;
 }
 
