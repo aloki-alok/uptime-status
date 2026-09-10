@@ -107,6 +107,34 @@ describe("subscription API", () => {
     });
   });
 
+  test("returns a bounded error when subscription requests are rate limited", async () => {
+    const seeded = subscriptionApp();
+    const app = createApp({
+      requestId: () => "request-test-0001",
+      subscriptions: {
+        acceptanceEnabled: true,
+        allowRequest: async () => false,
+        service: seeded.service,
+      },
+    });
+    const response = await app.handle(
+      new Request("http://localhost/api/v1/subscriptions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "person@example.com" }),
+      }),
+    );
+
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "rate_limited",
+        message: "Too many requests. Try again later",
+        requestId: "request-test-0001",
+      },
+    });
+  });
+
   test("requires an explicit browser post before confirmation and handles replay", async () => {
     const { app, repository } = subscriptionApp();
     await app.handle(

@@ -19,7 +19,7 @@ function decodeBase64url(value: string) {
   }
 }
 
-async function hmacKey(pepper: string, usage: KeyUsage[]) {
+async function hmacKey(pepper: string, usage: Array<"sign" | "verify">) {
   const pepperBytes = encoder.encode(pepper);
   if (pepperBytes.byteLength < 32) {
     throw new Error("Subscription token peppers must contain at least 32 bytes");

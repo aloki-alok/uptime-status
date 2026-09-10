@@ -3,6 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "exports": {
+    "./app": "./src/app.ts",
+    "./subscriptions/repository": "./src/subscriptions/repository.ts",
+    "./subscriptions/service": "./src/subscriptions/service.ts",
+    "./subscriptions/tokens": "./src/subscriptions/tokens.ts"
+  },
   "scripts": {
     "dev": "bun --watch src/server.ts",
     "start": "bun src/server.ts"

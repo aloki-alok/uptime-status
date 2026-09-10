@@ -6,10 +6,12 @@ const UNSUBSCRIBE_COOKIE = "uptime_status_unsubscribe";
 const UNSUBSCRIBE_PATH = "/api/v1/subscriptions/unsubscribe";
 const CONFIRMATION_COOKIE = "uptime_status_confirmation";
 const CONFIRMATION_PATH = "/api/v1/subscriptions/confirm";
+const encoder = new TextEncoder();
 
 type AppDependencies = {
   subscriptions?: {
     acceptanceEnabled: boolean;
+    allowRequest?: (request: Request) => Promise<boolean>;
     service: SubscriptionService;
   };
   requestId?: () => string;
@@ -78,7 +80,7 @@ export function createApp(dependencies: AppDependencies = {}) {
         return apiError(415, "invalid_request", "Content-Type must be application/json", id);
       }
       const contentLength = Number(request.headers.get("content-length"));
-      const bodyBytes = Buffer.byteLength(JSON.stringify(body ?? null), "utf8");
+      const bodyBytes = encoder.encode(JSON.stringify(body ?? null)).byteLength;
       if ((Number.isFinite(contentLength) && contentLength > 1024) || bodyBytes > 1024) {
         return apiError(413, "invalid_request", "Request body is too large", id);
       }
@@ -100,6 +102,12 @@ export function createApp(dependencies: AppDependencies = {}) {
         return apiError(422, "invalid_request", "Enter a valid email address", id);
       }
       try {
+        if (
+          dependencies.subscriptions.allowRequest &&
+          !(await dependencies.subscriptions.allowRequest(request))
+        ) {
+          return apiError(429, "rate_limited", "Too many requests. Try again later", id);
+        }
         const accepted = await dependencies.subscriptions.service.requestSubscription(body.email);
         return Response.json(accepted, {
           status: 202,

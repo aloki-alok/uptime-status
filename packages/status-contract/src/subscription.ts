@@ -2,6 +2,7 @@ import { type Static, Type } from "@sinclair/typebox";
 
 const LOCAL_PART = /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/i;
 const DOMAIN_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
+const encoder = new TextEncoder();
 
 export function normalizeEmail(input: unknown): string | null {
   if (
@@ -15,14 +16,14 @@ export function normalizeEmail(input: unknown): string | null {
   }
 
   const normalized = input.trim().toLowerCase();
-  if (Buffer.byteLength(normalized, "utf8") > 254) return null;
+  if (encoder.encode(normalized).byteLength > 254) return null;
 
   const separator = normalized.lastIndexOf("@");
   if (separator <= 0 || separator !== normalized.indexOf("@")) return null;
   const local = normalized.slice(0, separator);
   const domain = normalized.slice(separator + 1);
   if (
-    Buffer.byteLength(local, "utf8") > 64 ||
+    encoder.encode(local).byteLength > 64 ||
     !LOCAL_PART.test(local) ||
     local.startsWith(".") ||
     local.endsWith(".") ||
