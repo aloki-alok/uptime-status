@@ -1,0 +1,15 @@
+---
+import SubscriptionOutcome from "../../components/SubscriptionOutcome.astro";
+import { site } from "../../lib/build-data";
+---
+
+<SubscriptionOutcome
+  {site}
+  title="Confirm status updates?"
+  message="Confirm that you want to receive important incident and maintenance updates from this status page."
+>
+  <form slot="action" method="post" action="/api/v1/subscriptions/confirm">
+    <input type="hidden" name="intent" value="confirm" />
+    <button type="submit">Confirm subscription</button>
+  </form>
+</SubscriptionOutcome>

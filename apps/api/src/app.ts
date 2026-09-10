@@ -4,6 +4,8 @@ import { parseConfirmationToken } from "./subscriptions/tokens";
 
 const UNSUBSCRIBE_COOKIE = "uptime_status_unsubscribe";
 const UNSUBSCRIBE_PATH = "/api/v1/subscriptions/unsubscribe";
+const CONFIRMATION_COOKIE = "uptime_status_confirmation";
+const CONFIRMATION_PATH = "/api/v1/subscriptions/confirm";
 
 type AppDependencies = {
   subscriptions?: {
@@ -60,6 +62,10 @@ function unsubscribeCookie(token: string, maxAge: number) {
   return `${UNSUBSCRIBE_COOKIE}=${encodeURIComponent(token)}; Max-Age=${maxAge}; Path=${UNSUBSCRIBE_PATH}; HttpOnly; Secure; SameSite=Strict`;
 }
 
+function confirmationCookie(token: string, maxAge: number) {
+  return `${CONFIRMATION_COOKIE}=${encodeURIComponent(token)}; Max-Age=${maxAge}; Path=${CONFIRMATION_PATH}; HttpOnly; Secure; SameSite=Strict`;
+}
+
 export function createApp(dependencies: AppDependencies = {}) {
   const requestId = dependencies.requestId ?? (() => crypto.randomUUID());
   return new Elysia({ name: "uptime-status-api" })
@@ -110,12 +116,49 @@ export function createApp(dependencies: AppDependencies = {}) {
         return apiError(500, "internal_error", "The request could not be completed", id);
       }
     })
-    .get("/api/v1/subscriptions/confirm", async ({ query }) => {
-      if (!dependencies.subscriptions || typeof query.token !== "string") {
+    .get(CONFIRMATION_PATH, ({ query }) => {
+      if (
+        !dependencies.subscriptions ||
+        typeof query.token !== "string" ||
+        !parseConfirmationToken(query.token)
+      ) {
         return redirect("/subscriptions/invalid/");
       }
-      const outcome = await dependencies.subscriptions.service.confirm(query.token);
-      return redirect(`/subscriptions/${outcome}/`);
+      return redirect("/subscriptions/confirm/", {
+        "set-cookie": confirmationCookie(query.token, 600),
+      });
+    })
+    .post(CONFIRMATION_PATH, async ({ body, request }) => {
+      const invalid = () =>
+        redirect("/subscriptions/invalid/", {
+          "set-cookie": confirmationCookie("", 0),
+        });
+      if (!dependencies.subscriptions) return invalid();
+
+      const contentLength = Number(request.headers.get("content-length"));
+      if (Number.isFinite(contentLength) && contentLength > 2048) return invalid();
+      const contentType = request.headers.get("content-type")?.split(";", 1)[0].trim();
+      if (
+        contentType !== "application/x-www-form-urlencoded" &&
+        contentType !== "multipart/form-data"
+      ) {
+        return invalid();
+      }
+      const fields = body && typeof body === "object" && !Array.isArray(body) ? body : {};
+      const token =
+        queryValue(fields, "intent") === "confirm"
+          ? readCookie(request, CONFIRMATION_COOKIE)
+          : null;
+      if (!token) return invalid();
+
+      try {
+        const outcome = await dependencies.subscriptions.service.confirm(token);
+        return redirect(`/subscriptions/${outcome}/`, {
+          "set-cookie": confirmationCookie("", 0),
+        });
+      } catch {
+        return invalid();
+      }
     })
     .get(UNSUBSCRIBE_PATH, ({ query }) => {
       if (

@@ -1,12 +1,48 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-
 const TOKEN_PART = /^[A-Za-z0-9_-]+$/;
+const encoder = new TextEncoder();
 
-function hmac(pepper: string, value: string) {
-  if (Buffer.byteLength(pepper, "utf8") < 32) {
+function base64url(bytes: Uint8Array) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+
+function decodeBase64url(value: string) {
+  if (!TOKEN_PART.test(value) || value.length % 4 === 1) return null;
+  try {
+    const padding = "=".repeat((4 - (value.length % 4)) % 4);
+    const binary = atob(value.replaceAll("-", "+").replaceAll("_", "/") + padding);
+    const output = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    return base64url(output) === value ? output : null;
+  } catch {
+    return null;
+  }
+}
+
+async function hmacKey(pepper: string, usage: KeyUsage[]) {
+  const pepperBytes = encoder.encode(pepper);
+  if (pepperBytes.byteLength < 32) {
     throw new Error("Subscription token peppers must contain at least 32 bytes");
   }
-  return createHmac("sha256", pepper).update(value).digest("base64url");
+  return crypto.subtle.importKey(
+    "raw",
+    pepperBytes,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    usage,
+  );
+}
+
+async function hmac(pepper: string, value: string) {
+  const key = await hmacKey(pepper, ["sign"]);
+  return base64url(new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(value))));
+}
+
+async function verifyHmac(pepper: string, value: string, expected: string) {
+  const signature = decodeBase64url(expected);
+  if (signature?.byteLength !== 32) return false;
+  const key = await hmacKey(pepper, ["verify"]);
+  return crypto.subtle.verify("HMAC", key, signature, encoder.encode(value));
 }
 
 export function emailKey(siteId: string, normalizedEmail: string, lookupPepper: string) {
@@ -40,32 +76,37 @@ export type ParsedConfirmationToken = {
   secret: string;
 };
 
-export function issueConfirmationToken(input: {
+export async function issueConfirmationToken(input: {
   siteId: string;
   emailKey: string;
   version: number;
   confirmationPepper: string;
   secret?: Uint8Array;
 }) {
-  const secretBytes = input.secret ?? randomBytes(32);
+  const secretBytes = input.secret ?? crypto.getRandomValues(new Uint8Array(32));
   if (secretBytes.byteLength !== 32) {
     throw new Error("Confirmation token secrets must contain exactly 32 bytes");
   }
-  const secret = Buffer.from(secretBytes).toString("base64url");
+  const secret = base64url(secretBytes);
   const token = `v1.${input.emailKey}.${input.version}.${secret}`;
   return {
     token,
-    tokenHash: confirmationTokenHash(input.siteId, input.version, secret, input.confirmationPepper),
+    tokenHash: await confirmationTokenHash(
+      input.siteId,
+      input.version,
+      secret,
+      input.confirmationPepper,
+    ),
   };
 }
 
-export function issueUnsubscribeToken(input: {
+export async function issueUnsubscribeToken(input: {
   siteId: string;
   emailKey: string;
   version: number;
   unsubscribePepper: string;
 }) {
-  const signature = unsubscribeTokenHash(
+  const signature = await unsubscribeTokenHash(
     input.siteId,
     input.version,
     input.emailKey,
@@ -92,7 +133,7 @@ export function parseConfirmationToken(token: string): ParsedConfirmationToken |
   return { emailKey: key, version, secret };
 }
 
-export function verifyConfirmationToken(input: {
+export async function verifyConfirmationToken(input: {
   siteId: string;
   token: string;
   expectedHash: string;
@@ -100,31 +141,23 @@ export function verifyConfirmationToken(input: {
 }) {
   const parsed = parseConfirmationToken(input.token);
   if (!parsed) return false;
-  const actual = confirmationTokenHash(
-    input.siteId,
-    parsed.version,
-    parsed.secret,
+  return verifyHmac(
     input.confirmationPepper,
+    `${input.siteId}\u0000${parsed.version}\u0000${parsed.secret}`,
+    input.expectedHash,
   );
-  const actualBytes = Buffer.from(actual);
-  const expectedBytes = Buffer.from(input.expectedHash);
-  return actualBytes.length === expectedBytes.length && timingSafeEqual(actualBytes, expectedBytes);
 }
 
-export function verifyUnsubscribeToken(input: {
+export async function verifyUnsubscribeToken(input: {
   siteId: string;
   token: string;
   unsubscribePepper: string;
 }) {
   const parsed = parseConfirmationToken(input.token);
   if (!parsed) return false;
-  const expected = unsubscribeTokenHash(
-    input.siteId,
-    parsed.version,
-    parsed.emailKey,
+  return verifyHmac(
     input.unsubscribePepper,
+    `unsubscribe\u0000${input.siteId}\u0000${parsed.version}\u0000${parsed.emailKey}`,
+    parsed.secret,
   );
-  const actualBytes = Buffer.from(parsed.secret);
-  const expectedBytes = Buffer.from(expected);
-  return actualBytes.length === expectedBytes.length && timingSafeEqual(actualBytes, expectedBytes);
 }

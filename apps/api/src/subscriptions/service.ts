@@ -58,7 +58,7 @@ export class SubscriptionService {
   async requestSubscription(emailInput: unknown): Promise<SubscriptionAccepted> {
     const normalizedEmail = normalizeEmail(emailInput);
     if (!normalizedEmail) throw new Error("Invalid email address");
-    const key = emailKey(this.options.siteId, normalizedEmail, this.options.lookupPepper);
+    const key = await emailKey(this.options.siteId, normalizedEmail, this.options.lookupPepper);
 
     for (let attempt = 0; attempt < 4; attempt += 1) {
       const current = await this.repository.get(this.options.siteId, key);
@@ -68,7 +68,7 @@ export class SubscriptionService {
       }
 
       const tokenVersion = (current?.tokenVersion ?? 0) + 1;
-      const issued = issueConfirmationToken({
+      const issued = await issueConfirmationToken({
         siteId: this.options.siteId,
         emailKey: key,
         version: tokenVersion,
@@ -124,12 +124,12 @@ export class SubscriptionService {
         !current ||
         current.tokenVersion !== parsed.version ||
         !current.confirmationTokenHash ||
-        !verifyConfirmationToken({
+        !(await verifyConfirmationToken({
           siteId: this.options.siteId,
           token,
           expectedHash: current.confirmationTokenHash,
           confirmationPepper: this.options.confirmationPepper,
-        })
+        }))
       ) {
         return "invalid";
       }
@@ -176,11 +176,11 @@ export class SubscriptionService {
       if (
         !current ||
         current.tokenVersion !== parsed.version ||
-        !verifyUnsubscribeToken({
+        !(await verifyUnsubscribeToken({
           siteId: this.options.siteId,
           token,
           unsubscribePepper: this.options.unsubscribePepper,
-        })
+        }))
       ) {
         return "invalid";
       }

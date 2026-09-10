@@ -107,7 +107,7 @@ describe("subscription API", () => {
     });
   });
 
-  test("confirms through a no-store redirect and handles replay", async () => {
+  test("requires an explicit browser post before confirmation and handles replay", async () => {
     const { app, repository } = subscriptionApp();
     await app.handle(
       new Request("http://localhost/api/v1/subscriptions", {
@@ -119,14 +119,35 @@ describe("subscription API", () => {
     const token = repository.confirmationOutbox[0].token;
 
     for (let attempt = 0; attempt < 2; attempt += 1) {
-      const response = await app.handle(
+      const landing = await app.handle(
         new Request(`http://localhost/api/v1/subscriptions/confirm?token=${token}`),
+      );
+      expect(landing.status).toBe(303);
+      expect(landing.headers.get("location")).toBe("/subscriptions/confirm/");
+      expect(Array.from(repository.records.values())[0].status).toBe(
+        attempt === 0 ? "pending" : "active",
+      );
+      const cookie = landing.headers.get("set-cookie");
+      expect(cookie).toContain("HttpOnly");
+      expect(cookie).toContain("Secure");
+      expect(cookie).toContain("SameSite=Strict");
+
+      const response = await app.handle(
+        new Request("http://localhost/api/v1/subscriptions/confirm", {
+          method: "POST",
+          headers: {
+            "content-type": "application/x-www-form-urlencoded",
+            cookie: cookie?.split(";", 1)[0] ?? "",
+          },
+          body: "intent=confirm",
+        }),
       );
       expect(response.status).toBe(303);
       expect(response.headers.get("location")).toBe("/subscriptions/confirmed/");
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(response.headers.get("referrer-policy")).toBe("no-referrer");
       expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
     }
   });
 
@@ -149,13 +170,55 @@ describe("subscription API", () => {
       requestId: () => "request-test-0001",
       subscriptions: { acceptanceEnabled: false, service: seeded.service },
     });
-    const response = await paused.handle(
+    const landing = await paused.handle(
       new Request(
         `http://localhost/api/v1/subscriptions/confirm?token=${seeded.repository.confirmationOutbox[0].token}`,
       ),
     );
+    const response = await paused.handle(
+      new Request("http://localhost/api/v1/subscriptions/confirm", {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          cookie: landing.headers.get("set-cookie")?.split(";", 1)[0] ?? "",
+        },
+        body: "intent=confirm",
+      }),
+    );
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("/subscriptions/confirmed/");
+  });
+
+  test("does not confirm scanner GET requests or posts without browser intent", async () => {
+    const { app, repository, service } = subscriptionApp();
+    await service.requestSubscription("person@example.com");
+    const token = repository.confirmationOutbox[0].token;
+
+    const landing = await app.handle(
+      new Request(`http://localhost/api/v1/subscriptions/confirm?token=${token}`),
+    );
+    expect(Array.from(repository.records.values())[0].status).toBe("pending");
+
+    for (const request of [
+      new Request("http://localhost/api/v1/subscriptions/confirm", {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "intent=confirm",
+      }),
+      new Request("http://localhost/api/v1/subscriptions/confirm", {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          cookie: landing.headers.get("set-cookie")?.split(";", 1)[0] ?? "",
+        },
+        body: "intent=preview",
+      }),
+    ]) {
+      const response = await app.handle(request);
+      expect(response.status).toBe(303);
+      expect(response.headers.get("location")).toBe("/subscriptions/invalid/");
+    }
+    expect(Array.from(repository.records.values())[0].status).toBe("pending");
   });
 
   test("requires browser confirmation before unsubscribe changes state", async () => {
