@@ -1,4 +1,5 @@
 import { Database } from "bun:sqlite";
+import { pathToFileURL } from "node:url";
 import {
   createHistoryImportBundle,
   type HistoryImportBundle,
@@ -170,7 +171,9 @@ export class UptimeKumaSqliteExtractor implements HistoryExtractor {
 
   async extract(request: HistoryExtractionRequest): Promise<HistoryImportBundle> {
     assertSupportedRequest(request);
-    const database = new Database(request.artifact.path, { readonly: true, strict: true });
+    const artifactUrl = pathToFileURL(request.artifact.path);
+    artifactUrl.searchParams.set("immutable", "1");
+    const database = new Database(artifactUrl.href, { readonly: true, strict: true });
     try {
       database.run("PRAGMA query_only = ON");
       assertSchema(database);

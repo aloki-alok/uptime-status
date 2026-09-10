@@ -19,11 +19,12 @@ afterEach(async () => {
   }
 });
 
-async function fixture(options: { omitImportant?: boolean } = {}) {
+async function fixture(options: { omitImportant?: boolean; walMode?: boolean } = {}) {
   const directory = await mkdtemp(join(tmpdir(), "uptime-kuma-sqlite-"));
   directories.push(directory);
   const path = join(directory, "kuma.sqlite");
   const database = new Database(path, { create: true, strict: true });
+  if (options.walMode) database.run("PRAGMA journal_mode = WAL");
   database.run("CREATE TABLE monitor (id INTEGER PRIMARY KEY)");
   database.run(
     `CREATE TABLE heartbeat (
@@ -67,7 +68,12 @@ async function fixture(options: { omitImportant?: boolean } = {}) {
       "CREATE TABLE heartbeat (id INTEGER PRIMARY KEY, monitor_id INTEGER, status INTEGER, time DATETIME)",
     );
   }
+  if (options.walMode) database.run("PRAGMA wal_checkpoint(TRUNCATE)");
   database.close();
+  if (options.walMode) {
+    await rm(`${path}-shm`, { force: true });
+    await rm(`${path}-wal`, { force: true });
+  }
 
   const bytes = await readFile(path);
   const request: HistoryExtractionRequest = {
@@ -93,6 +99,17 @@ async function fixture(options: { omitImportant?: boolean } = {}) {
 }
 
 describe("Uptime Kuma 2.2 SQLite history extraction", () => {
+  test("reads a self-contained WAL-mode backup without sidecar files", async () => {
+    const inspector = new HistoryImportInspector(
+      new HistoryExtractorRegistry([new UptimeKumaSqliteExtractor()]),
+    );
+    const request = await fixture({ walMode: true });
+
+    const bundle = await inspector.inspect("uptime-kuma-sqlite", request);
+
+    expect(bundle.components[0].componentId).toBe("public-api");
+  });
+
   test("reproduces UTC buckets and confirmed-down outage semantics", async () => {
     const inspector = new HistoryImportInspector(
       new HistoryExtractorRegistry([new UptimeKumaSqliteExtractor()]),
