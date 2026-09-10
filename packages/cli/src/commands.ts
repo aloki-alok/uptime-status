@@ -80,7 +80,8 @@ function environmentSecretEntries(config: SiteConfig): Array<[string, string]> {
   });
   if (
     config.subscriptions.enabled &&
-    config.subscriptions.delivery.provider === "smtp" &&
+    (config.subscriptions.delivery.provider === "smtp" ||
+      config.subscriptions.delivery.provider === "resend") &&
     config.subscriptions.delivery.connection.provider === "environment"
   ) {
     secrets.push([

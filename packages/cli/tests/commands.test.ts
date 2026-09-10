@@ -72,6 +72,46 @@ describe("doctor", () => {
     });
     expect(checks.find((check) => check.name === "Asset brand.faviconPath")?.ok).toBe(false);
   });
+
+  test("checks Resend environment secret references", () => {
+    const destination = resolve(temporaryDirectory(), "site");
+    initSite(destination);
+    const sitePath = resolve(destination, "status.config.json");
+    const config = JSON.parse(readFileSync(sitePath, "utf8"));
+    config.subscriptions = {
+      enabled: true,
+      doubleOptIn: true,
+      notificationFanoutEnabled: false,
+      delivery: {
+        provider: "resend",
+        connection: { provider: "environment", reference: "RESEND_API_KEY" },
+        senderEmail: "status@example.com",
+      },
+      confirmationTtlSeconds: 86_400,
+      resendCooldownSeconds: 900,
+    };
+    writeFileSync(sitePath, JSON.stringify(config));
+
+    const missing = doctorSite({
+      sitePath,
+      bunVersion: "1.3.14",
+      expectedBunVersion: "1.3.14",
+      environment: {},
+    });
+    const present = doctorSite({
+      sitePath,
+      bunVersion: "1.3.14",
+      expectedBunVersion: "1.3.14",
+      environment: { RESEND_API_KEY: "set" },
+    });
+
+    expect(
+      missing.find((check) => check.name === "Secret subscriptions.delivery.connection")?.ok,
+    ).toBe(false);
+    expect(
+      present.find((check) => check.name === "Secret subscriptions.delivery.connection")?.ok,
+    ).toBe(true);
+  });
 });
 
 describe("build", () => {
