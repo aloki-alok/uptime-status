@@ -1,4 +1,4 @@
-import type { SubscriberStatus } from "@uptime-status/domain";
+import type { SubscriberStatus } from "@uptime-status/domain/subscription";
 
 export type SubscriberRecord = {
   siteId: string;

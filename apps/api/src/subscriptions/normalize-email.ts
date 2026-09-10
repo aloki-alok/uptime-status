@@ -1,1 +1,1 @@
-export { normalizeEmail } from "@uptime-status/domain";
+export { normalizeEmail } from "@uptime-status/domain/subscription";

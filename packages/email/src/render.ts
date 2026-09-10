@@ -1,4 +1,5 @@
-import { normalizeEmail, type SiteConfig, validateSiteConfig } from "@uptime-status/domain";
+import { type SiteConfig, validateSiteConfig } from "@uptime-status/domain/site";
+import { normalizeEmail } from "@uptime-status/domain/subscription";
 
 const ISO_TIMESTAMP =
   /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;

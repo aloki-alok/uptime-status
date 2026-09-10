@@ -1,4 +1,4 @@
-import type { SubscriptionAccepted } from "@uptime-status/domain";
+import type { SubscriptionAccepted } from "@uptime-status/domain/subscription";
 import { normalizeEmail } from "./normalize-email";
 import type {
   ConfirmationOutboxRecord,
