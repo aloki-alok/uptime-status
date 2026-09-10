@@ -25,7 +25,9 @@
       "name": "@uptime-status/cloudflare-worker",
       "version": "0.1.0",
       "dependencies": {
+        "@uptime-status/api": "workspace:*",
         "@uptime-status/domain": "workspace:*",
+        "@uptime-status/email": "workspace:*",
         "@uptime-status/snapshot": "workspace:*",
       },
     },

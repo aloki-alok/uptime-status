@@ -68,6 +68,26 @@ describe("Cloudflare status worker", () => {
     );
   });
 
+  test("keeps runtime configuration private and fails closed without subscription bindings", async () => {
+    const env = testEnv();
+    const internal = await worker.fetch(
+      new Request("https://status.example.com/runtime/site-config.json"),
+      env,
+    );
+    const subscription = await worker.fetch(
+      new Request("https://status.example.com/api/v1/subscriptions", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "person@example.com" }),
+      }),
+      env,
+    );
+
+    expect(internal.status).toBe(404);
+    expect(subscription.status).toBe(503);
+    expect(subscription.headers.get("cache-control")).toBe("no-store");
+  });
+
   test("refreshes a stale snapshot before returning it", async () => {
     const kv = new MemoryKv();
     await runPublisher(testEnv(kv), async () => new Response("ok", { status: 200 }));

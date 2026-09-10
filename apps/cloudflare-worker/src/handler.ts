@@ -1,5 +1,13 @@
 import { validateStatusSnapshot } from "@uptime-status/domain/snapshot";
 import { currentKey, runPublisher } from "./publisher";
+import {
+  handleResendWebhook,
+  handleSubscriptionApi,
+  hasSubscriptionRuntime,
+  processSubscriptionQueue,
+  repairSubscriptionOutbox,
+  type SubscriptionRuntimeEnv,
+} from "./subscriptions/runtime";
 
 const SECURITY_HEADERS = {
   "content-security-policy":
@@ -26,8 +34,64 @@ function refreshDue(snapshot: { latestCheckAt: string }, pollIntervalSeconds: st
 
 export function createWorker(fetcher: typeof globalThis.fetch = globalThis.fetch) {
   return {
-    async fetch(request, env): Promise<Response> {
+    async fetch(request, env, context): Promise<Response> {
       const url = new URL(request.url);
+      if (url.pathname === "/runtime/site-config.json") {
+        return secured(new Response("Not found", { status: 404 }));
+      }
+      const runtimeConfigured = hasSubscriptionRuntime(env as unknown as Record<string, unknown>);
+      if (url.pathname === "/api/v1/webhooks/resend") {
+        if (!runtimeConfigured) {
+          return secured(new Response("Subscriptions unavailable", { status: 503 }));
+        }
+        try {
+          return secured(
+            await handleResendWebhook(request, env as unknown as SubscriptionRuntimeEnv),
+          );
+        } catch {
+          console.error(JSON.stringify({ kind: "subscription-webhook-failed" }));
+          return secured(new Response("Webhook unavailable", { status: 503 }));
+        }
+      }
+      if (url.pathname.startsWith("/api/v1/subscriptions")) {
+        if (!runtimeConfigured) {
+          return secured(
+            Response.json(
+              {
+                error: {
+                  code: "subscriptions_unavailable",
+                  message: "Subscriptions are temporarily unavailable",
+                  requestId: crypto.randomUUID(),
+                },
+              },
+              { status: 503, headers: { "cache-control": "no-store" } },
+            ),
+          );
+        }
+        try {
+          return secured(
+            await handleSubscriptionApi(
+              request,
+              env as unknown as SubscriptionRuntimeEnv,
+              (promise) => context.waitUntil(promise),
+            ),
+          );
+        } catch {
+          console.error(JSON.stringify({ kind: "subscription-api-failed" }));
+          return secured(
+            Response.json(
+              {
+                error: {
+                  code: "subscriptions_unavailable",
+                  message: "Subscriptions are temporarily unavailable",
+                  requestId: crypto.randomUUID(),
+                },
+              },
+              { status: 503, headers: { "cache-control": "no-store" } },
+            ),
+          );
+        }
+      }
       if (url.pathname !== "/current.json") return secured(await env.ASSETS.fetch(request));
 
       let snapshot = await env.STATUS.get(currentKey(env.SITE_ID), "json");
@@ -55,6 +119,24 @@ export function createWorker(fetcher: typeof globalThis.fetch = globalThis.fetch
     async scheduled(_controller, env): Promise<void> {
       const result = await runPublisher(env, fetcher);
       console.log(JSON.stringify({ kind: result.kind, revision: result.snapshot.sourceRevision }));
+      if (hasSubscriptionRuntime(env as unknown as Record<string, unknown>)) {
+        try {
+          await repairSubscriptionOutbox(env as unknown as SubscriptionRuntimeEnv);
+        } catch {
+          console.error(JSON.stringify({ kind: "subscription-outbox-repair-failed" }));
+        }
+      }
+    },
+
+    async queue(batch, env): Promise<void> {
+      if (!hasSubscriptionRuntime(env as unknown as Record<string, unknown>)) {
+        batch.retryAll({ delaySeconds: 300 });
+        return;
+      }
+      await processSubscriptionQueue(
+        batch as MessageBatch<import("./subscriptions/d1-repository").SubscriptionQueueMessage>,
+        env as unknown as SubscriptionRuntimeEnv,
+      );
     },
   } satisfies ExportedHandler<Env>;
 }

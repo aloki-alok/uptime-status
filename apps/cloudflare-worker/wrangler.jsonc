@@ -15,6 +15,32 @@
       "id": "00000000000000000000000000000000"
     }
   ],
+  "d1_databases": [
+    {
+      "binding": "SUBSCRIPTIONS_DATABASE",
+      "database_name": "uptime-status-example-subscriptions",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "SUBSCRIPTION_CONFIRMATIONS",
+        "queue": "uptime-status-example-confirmations"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "uptime-status-example-confirmations",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 5,
+        "retry_delay": 60,
+        "dead_letter_queue": "uptime-status-example-confirmations-dlq"
+      }
+    ]
+  },
   "vars": {
     "SITE_ID": "example-site",
     "TARGET_URL": "https://example.com/",
@@ -22,7 +48,8 @@
     "COMPONENT_NAME": "Website",
     "COMPONENT_GROUP": "Website",
     "SHOW_LATENCY": "true",
-    "POLL_INTERVAL_SECONDS": "60"
+    "POLL_INTERVAL_SECONDS": "60",
+    "SUBSCRIPTION_ACCEPTANCE_ENABLED": "false"
   },
   "triggers": {
     "crons": ["* * * * *"]
