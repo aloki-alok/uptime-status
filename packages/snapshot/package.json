@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./publisher": "./src/publisher.ts"
+    "./publisher": "./src/publisher.ts",
+    "./uptime-kuma": "./src/uptime-kuma-publisher.ts"
   },
   "scripts": {
     "build:lambda": "bun build src/aws-handler.ts --target=node --outfile=dist/index.mjs",
