@@ -6,12 +6,12 @@ import { site, siteAssetPath } from "../../lib/build-data";
 export const prerender = true;
 
 const assets = {
-  "logo-light": site.brand.logoLightPath,
-  "logo-dark": site.brand.logoDarkPath,
-  "icon-light": site.brand.iconLightPath,
-  "icon-dark": site.brand.iconDarkPath,
-  favicon: site.brand.faviconPath,
-} as const;
+  [`logo-light${extname(site.brand.logoLightPath)}`]: site.brand.logoLightPath,
+  [`logo-dark${extname(site.brand.logoDarkPath)}`]: site.brand.logoDarkPath,
+  [`icon-light${extname(site.brand.iconLightPath)}`]: site.brand.iconLightPath,
+  [`icon-dark${extname(site.brand.iconDarkPath)}`]: site.brand.iconDarkPath,
+  [`favicon${extname(site.brand.faviconPath)}`]: site.brand.faviconPath,
+};
 
 const contentTypes: Record<string, string> = {
   ".ico": "image/x-icon",

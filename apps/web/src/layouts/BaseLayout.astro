@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import { site, siteAssetDataUrl } from "../lib/build-data";
 
 type Props = {
   title: string;
@@ -8,6 +9,7 @@ type Props = {
 };
 
 const { title, description, locale = "en" } = Astro.props;
+const favicon = siteAssetDataUrl(site.brand.faviconPath);
 ---
 
 <!doctype html>
@@ -19,7 +21,7 @@ const { title, description, locale = "en" } = Astro.props;
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#f5f7f4" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#101513" media="(prefers-color-scheme: dark)" />
-    <link rel="icon" href="/site-assets/favicon/" />
+    <link rel="icon" href={favicon} />
     <link rel="stylesheet" href="/site-theme.css" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>

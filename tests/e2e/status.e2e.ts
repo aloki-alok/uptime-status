@@ -8,7 +8,7 @@ test.describe("status overview", () => {
       await expect(page.getByRole("heading", { level: 1 })).toHaveText("All systems operational");
       await expect(page.getByRole("heading", { name: "Service health" })).toBeVisible();
       await expect(page.locator(".uptime-day")).toHaveCount(180);
-      await expect(page.locator(".site-header img")).toHaveCount(0);
+      await expect(page.locator(".site-brand img")).toHaveCount(1);
       await expect(page.locator(".latency-card svg[role='img']")).toHaveCount(1);
       await expect(page.getByText("Infrastructure capacity update")).toBeVisible();
     });
@@ -29,7 +29,16 @@ test.describe("status overview", () => {
   test("public header keeps only primary actions", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.locator(".site-header img")).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Example Service home" })).toHaveAttribute(
+      "href",
+      "https://example.com",
+    );
+    await expect(page.locator(".site-brand img")).toHaveAttribute("src", /^data:image\//);
+    expect(
+      await page
+        .locator(".site-brand img")
+        .evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0),
+    ).toBe(true);
     await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(1);
     await expect(page.getByRole("link", { name: "Past incidents" })).toBeVisible();
     await expect(page.locator(".community-link")).toHaveCount(0);
@@ -131,7 +140,37 @@ test("stale and nullable observations never render as healthy or malformed", asy
   await expect(page.getByText("Response unavailable", { exact: true })).toBeVisible();
   await expect(page.locator(".uptime-day.day-unknown")).toHaveCount(1);
   await expect(page.getByText("null%", { exact: false })).toHaveCount(0);
-  await expect(page.locator(".uptime-day[tabindex]")).toHaveCount(0);
+  await expect(page.locator("[data-component-history]")).toHaveCount(2);
+  await expect(page.locator("[data-component-history][role='group']")).toHaveCount(2);
+  await expect(page.locator("[data-component-history] .uptime-day[tabindex='0']")).toHaveCount(2);
+
+  const unknown = page.locator(".uptime-day.day-unknown");
+  await unknown.hover();
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText("No uptime data");
+  await expect(tooltip).toContainText("Status delayed");
+  await expect(tooltip).not.toContainText("null%");
+});
+
+test("uptime history supports pointer and keyboard day details", async ({ page }) => {
+  await page.goto("/");
+
+  const history = page.locator("[data-component-history]").first();
+  const days = history.locator(".uptime-day");
+  await expect(days).toHaveCount(90);
+  await expect(history.locator(".uptime-day[tabindex='0']")).toHaveCount(1);
+
+  await history.locator(".uptime-day[tabindex='0']").focus();
+  await expect(page.getByRole("tooltip")).toBeVisible();
+  await page.keyboard.press("ArrowLeft");
+  await expect(history.locator(".uptime-day:focus")).toHaveAttribute("tabindex", "0");
+  await page.keyboard.press("Home");
+  await expect(days.first()).toBeFocused();
+  await page.keyboard.press("End");
+  await expect(days.last()).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("tooltip")).toBeHidden();
 });
 
 test("core status content is present in the server response", async ({ request }) => {
@@ -139,6 +178,7 @@ test("core status content is present in the server response", async ({ request }
   const html = await response.text();
 
   expect(response.ok()).toBe(true);
+  expect(html).toContain('rel="icon" href="data:image/');
   expect(html).toContain("All systems operational");
   expect(html).toContain("Service health");
   expect(html).toContain("Public API");
@@ -157,7 +197,6 @@ test("a validated live snapshot updates response values and chart points", async
   snapshot.sourceRevision = "live-refresh-test-0001";
   snapshot.components[0].responseTimeMs = 321;
   snapshot.components[0].latency.at(-1).avgMs = 333;
-  snapshot.components[0].latency.at(-1).p95Ms = 411;
 
   await page.route("**/current.json", (route) => route.fulfill({ json: snapshot }));
   await page.goto("/");
@@ -165,7 +204,10 @@ test("a validated live snapshot updates response values and chart points", async
   await expect(page.getByText("321 ms response", { exact: true })).toBeVisible();
   const apiLatency = page.locator('[data-latency-slug="public-api"]');
   await expect(apiLatency.locator("[data-latency-now]")).toHaveText("333 ms");
-  await expect(apiLatency.locator("[data-latency-p95]")).toHaveText("411 ms");
+  await expect(apiLatency.locator("[data-latency-count]")).toHaveText(
+    String(snapshot.components[0].latency.length),
+  );
+  await expect(apiLatency.getByText("Latest p95", { exact: true })).toHaveCount(0);
   await expect(page.locator("[data-status-root]")).toHaveAttribute(
     "data-source-revision",
     "live-refresh-test-0001",

@@ -1,5 +1,6 @@
 ---
 import type { SiteConfig } from "@uptime-status/domain";
+import { siteAssetDataUrl } from "../lib/build-data";
 
 type Props = {
   active?: "overview" | "maintenance" | "history";
@@ -7,9 +8,17 @@ type Props = {
 };
 
 const { active = "overview", site } = Astro.props;
+const logoLight = siteAssetDataUrl(site.brand.logoLightPath);
+const logoDark = siteAssetDataUrl(site.brand.logoDarkPath);
 ---
 
 <header class="site-header">
+  <a class="site-brand" href={site.brand.homeUrl} aria-label={`${site.displayName} home`}>
+    <picture>
+      <source srcset={logoDark} media="(prefers-color-scheme: dark)" />
+      <img src={logoLight} alt={site.brand.logoAlt} width="32" height="32" />
+    </picture>
+  </a>
   <nav aria-label="Status navigation">
     <a href="/history/" aria-current={active === "history" ? "page" : undefined}>Past incidents</a>
     {site.community && (

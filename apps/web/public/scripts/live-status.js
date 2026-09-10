@@ -205,9 +205,8 @@ function canApplySnapshot(snapshot) {
       "[data-latency-checked]",
       "[data-latency-now]",
       "[data-latency-average]",
-      "[data-latency-p95]",
+      "[data-latency-count]",
       "[data-chart-average]",
-      "[data-chart-p95]",
       "[data-chart-max]",
       "[data-chart-min]",
       "[data-chart-start]",
@@ -305,29 +304,31 @@ function updateComponents(components) {
       if (!cell) return;
       for (const possibleState of states) cell.classList.remove(`day-${possibleState}`);
       cell.classList.add(`day-${day.state}`);
-      cell.dateTime = day.date;
-      cell.title =
-        day.uptime === null ? `${day.date}: no uptime data` : `${day.date}: ${day.uptime}% uptime`;
+      if (window.uptimeHistory?.updateDay) window.uptimeHistory.updateDay(cell, day);
     });
   }
 }
 
 function chartData(latency) {
-  const values = latency.flatMap((point) => [point.avgMs, point.p95Ms]);
+  const values = latency.map((point) => point.avgMs);
   const min = Math.floor(Math.min(...values) / 25) * 25;
-  const max = Math.ceil(Math.max(...values) / 25) * 25;
-  const span = Math.max(max - min, 25);
-  const point = (value, index) => {
-    const x = latency.length === 1 ? 300 : 18 + (index / (latency.length - 1)) * 564;
+  const roundedMax = Math.ceil(Math.max(...values) / 25) * 25;
+  const max = Math.max(roundedMax, min + 25);
+  const span = max - min;
+  const latestAt = Date.parse(latency.at(-1).observedAt);
+  const windowStart = latestAt - 59 * 60_000;
+  const point = (value, observedAt) => {
+    const elapsed = Math.max(0, Math.min(59 * 60_000, Date.parse(observedAt) - windowStart));
+    const x = 18 + (elapsed / (59 * 60_000)) * 564;
     const y = 142 - ((value - min) / span) * 118;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   };
   return {
     min,
     max,
+    windowStart,
     average: Math.round(latency.reduce((sum, item) => sum + item.avgMs, 0) / latency.length),
-    averages: latency.map((item, index) => point(item.avgMs, index)).join(" "),
-    p95: latency.map((item, index) => point(item.p95Ms, index)).join(" "),
+    samples: latency.map((item) => point(item.avgMs, item.observedAt)).join(" "),
   };
 }
 
@@ -343,18 +344,17 @@ function updateLatency(components) {
       `Checked ${siteTime.format(new Date(latest.observedAt))}`;
     card.querySelector("[data-latency-now]").textContent = `${Math.round(latest.avgMs)} ms`;
     card.querySelector("[data-latency-average]").textContent = `${data.average} ms`;
-    card.querySelector("[data-latency-p95]").textContent = `${Math.round(latest.p95Ms)} ms`;
-    card.querySelector("[data-chart-average]").setAttribute("points", data.averages);
-    card.querySelector("[data-chart-p95]").setAttribute("points", data.p95);
+    card.querySelector("[data-latency-count]").textContent = String(latency.length);
+    card.querySelector("[data-chart-average]").setAttribute("points", data.samples);
     card.querySelector("[data-chart-max]").textContent = `${data.max} ms`;
     card.querySelector("[data-chart-min]").textContent = `${data.min} ms`;
     card.querySelector("[data-chart-start]").textContent = siteTime.format(
-      new Date(latency[0].observedAt),
+      new Date(data.windowStart),
     );
     const chart = card.querySelector("svg");
     chart.setAttribute(
       "aria-label",
-      `${component.name} response time across recent published checks. Latest average ${Math.round(latest.avgMs)} milliseconds, average across the visible checks ${data.average} milliseconds, latest 95th percentile ${Math.round(latest.p95Ms)} milliseconds. Scale ${data.min} to ${data.max} milliseconds.`,
+      `${component.name} response time across ${latency.length} published checks in the latest 60-minute window. Latest ${Math.round(latest.avgMs)} milliseconds and average ${data.average} milliseconds. Missing minutes remain gaps. Scale ${data.min} to ${data.max} milliseconds.`,
     );
   }
 }

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { dirname, isAbsolute, resolve } from "node:path";
+import { dirname, extname, isAbsolute, resolve } from "node:path";
 import {
   createStatusFixture,
   type SiteConfig,
@@ -64,6 +64,17 @@ export function siteAssetPath(relativePath: string) {
     throw new Error("Site asset path escapes the site directory");
   }
   return absolute;
+}
+
+export function siteAssetDataUrl(relativePath: string) {
+  const mimeType = {
+    ".ico": "image/x-icon",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".webp": "image/webp",
+  }[extname(relativePath).toLowerCase()];
+  if (!mimeType) throw new Error(`Unsupported site asset type: ${extname(relativePath)}`);
+  return `data:${mimeType};base64,${readFileSync(siteAssetPath(relativePath)).toString("base64")}`;
 }
 
 export function siteVariant() {

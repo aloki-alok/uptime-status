@@ -139,11 +139,34 @@ dd,
 .site-header {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   min-height: 72px;
   padding: 0 var(--content-gutter);
   border-bottom: 1px solid var(--line);
   background: transparent;
+}
+
+.site-brand {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+}
+
+.site-brand:hover {
+  background: var(--accent-wash);
+}
+
+.site-brand:active {
+  transform: scale(0.97);
+}
+
+.site-brand picture,
+.site-brand img {
+  display: block;
+  width: 30px;
+  height: 30px;
 }
 
 .site-header nav {
@@ -493,10 +516,30 @@ dd,
 }
 
 .uptime-history {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(90, minmax(2px, 1fr));
   gap: 2px;
   height: 30px;
+}
+
+.uptime-tooltip {
+  position: fixed;
+  z-index: 20;
+  width: max-content;
+  max-width: min(300px, calc(100vw - 16px));
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface-raised);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 10%, transparent);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+  pointer-events: none;
+  transform: translateX(-50%);
 }
 
 .uptime-day {
@@ -642,8 +685,7 @@ dd,
   vector-effect: non-scaling-stroke;
 }
 
-.chart-average,
-.chart-p95 {
+.chart-average {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -653,13 +695,6 @@ dd,
 .chart-average {
   stroke: var(--accent);
   stroke-width: 2.5;
-}
-
-.chart-p95 {
-  stroke: var(--ink-soft);
-  stroke-width: 1.25;
-  stroke-dasharray: 3 5;
-  opacity: 0.65;
 }
 
 .chart-scale {
@@ -702,11 +737,6 @@ dd,
   width: 15px;
   height: 2px;
   background: var(--accent);
-}
-
-.chart-legend .legend-p95 {
-  height: 1px;
-  background: var(--ink-soft);
 }
 
 .maintenance-time {

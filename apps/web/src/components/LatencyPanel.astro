@@ -10,23 +10,25 @@ const { components, site } = Astro.props;
 const measured = components.filter((component) => component.latency !== null);
 
 function chartData(latency: NonNullable<(typeof measured)[number]["latency"]>) {
-  const values = latency.flatMap((point) => [point.avgMs, point.p95Ms]);
+  const values = latency.map((point) => point.avgMs);
   const min = Math.floor(Math.min(...values) / 25) * 25;
-  const max = Math.ceil(Math.max(...values) / 25) * 25;
-  const span = Math.max(max - min, 25);
-  const point = (value: number, index: number) => {
-    const x = latency.length === 1 ? 300 : 18 + (index / (latency.length - 1)) * 564;
+  const roundedMax = Math.ceil(Math.max(...values) / 25) * 25;
+  const max = Math.max(roundedMax, min + 25);
+  const span = max - min;
+  const latestAt = Date.parse(latency.at(-1)?.observedAt ?? "");
+  const windowStart = latestAt - 59 * 60_000;
+  const point = (value: number, observedAt: string) => {
+    const elapsed = Math.max(0, Math.min(59 * 60_000, Date.parse(observedAt) - windowStart));
+    const x = 18 + (elapsed / (59 * 60_000)) * 564;
     const y = 142 - ((value - min) / span) * 118;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   };
-  const averages = latency.map((item, index) => point(item.avgMs, index)).join(" ");
-  const p95 = latency.map((item, index) => point(item.p95Ms, index)).join(" ");
+  const samples = latency.map((item) => point(item.avgMs, item.observedAt)).join(" ");
   const average = Math.round(
     latency.reduce((sum, item) => sum + item.avgMs, 0) / latency.length,
   );
-  const latestP95 = latency.at(-1)?.p95Ms ?? 0;
 
-  return { average, averages, latestP95, max, min, p95 };
+  return { average, max, min, samples, windowStart };
 }
 
 const time = new Intl.DateTimeFormat(site.locale, {
@@ -52,7 +54,6 @@ const time = new Intl.DateTimeFormat(site.locale, {
         if (!latency) return null;
         const data = chartData(latency);
         const current = Math.round(latency.at(-1)?.avgMs ?? 0);
-        const latestP95 = Math.round(data.latestP95);
         const lastObservedAt = latency.at(-1)?.observedAt;
         return (
           <figure class="latency-card" data-latency-slug={component.slug}>
@@ -64,20 +65,19 @@ const time = new Intl.DateTimeFormat(site.locale, {
               <dl>
                 <div><dt>Latest</dt><dd data-latency-now>{current} ms</dd></div>
                 <div><dt>Average</dt><dd data-latency-average>{data.average} ms</dd></div>
-                <div><dt>Latest p95</dt><dd data-latency-p95>{latestP95} ms</dd></div>
+                <div><dt>Checks</dt><dd data-latency-count>{latency.length}</dd></div>
               </dl>
             </figcaption>
             <div class="chart-wrap">
               <svg
                 viewBox="0 0 600 160"
                 role="img"
-                aria-label={`${component.name} response time across recent published checks. Latest average ${current} milliseconds, average across the visible checks ${data.average} milliseconds, latest 95th percentile ${latestP95} milliseconds. Scale ${data.min} to ${data.max} milliseconds.`}
+                aria-label={`${component.name} response time across ${latency.length} published checks in the latest 60-minute window. Latest ${current} milliseconds and average ${data.average} milliseconds. Missing minutes remain gaps. Scale ${data.min} to ${data.max} milliseconds.`}
               >
                 <line x1="18" y1="24" x2="582" y2="24" class="chart-grid" />
                 <line x1="18" y1="83" x2="582" y2="83" class="chart-grid" />
                 <line x1="18" y1="142" x2="582" y2="142" class="chart-grid" />
-                <polyline points={data.p95} class="chart-p95" data-chart-p95 />
-                <polyline points={data.averages} class="chart-average" data-chart-average />
+                <polyline points={data.samples} class="chart-average" data-chart-average />
               </svg>
               <div class="chart-scale" aria-hidden="true">
                 <span data-chart-max>{data.max} ms</span>
@@ -85,12 +85,11 @@ const time = new Intl.DateTimeFormat(site.locale, {
               </div>
             </div>
             <div class="chart-axis" aria-hidden="true">
-              <span data-chart-start>{time.format(new Date(latency[0].observedAt))}</span>
+              <span data-chart-start>{time.format(new Date(data.windowStart))}</span>
               <span>Latest</span>
             </div>
             <div class="chart-legend" aria-hidden="true">
-              <span><i class="legend-average"></i>Average</span>
-              <span><i class="legend-p95"></i>Latest p95</span>
+              <span><i class="legend-average"></i>Observed response time</span>
             </div>
           </figure>
         );

@@ -96,6 +96,19 @@ function historySummary(component: StatusSnapshot["components"][number]) {
 
   return `${component.name}, 90-day history. ${average} ${interruptionCopy}`;
 }
+
+const historyDate = new Intl.DateTimeFormat(site.locale, {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function dayDetails(day: StatusSnapshot["components"][number]["history"][number]) {
+  const uptime = day.uptime === null ? "No uptime data." : `${day.uptime}% uptime.`;
+  const down = `${day.downMinutes} ${day.downMinutes === 1 ? "minute" : "minutes"} down.`;
+  return `${historyDate.format(new Date(`${day.date}T00:00:00Z`))}. ${stateLabels[day.state]}. ${uptime} ${down}`;
+}
 ---
 
 <main
@@ -193,13 +206,14 @@ function historySummary(component: StatusSnapshot["components"][number]) {
                     <span data-component-response>{component.responseTimeMs === null ? "Response unavailable" : `${component.responseTimeMs} ms response`}</span>
                   </div>
                 </div>
-                <div class="uptime-history" role="img" aria-label={historySummary(component)} data-component-history>
-                  {component.history.map((day) => (
+                <div class="uptime-history" role="group" aria-label={historySummary(component)} data-component-history>
+                  {component.history.map((day, index) => (
                     <time
                       class:list={["uptime-day", `day-${day.state}`]}
                       datetime={day.date}
-                      aria-hidden="true"
-                      title={day.uptime === null ? `${day.date}: no uptime data` : `${day.date}: ${day.uptime}% uptime`}
+                      tabindex={index === component.history.length - 1 ? "0" : "-1"}
+                      aria-label={dayDetails(day)}
+                      data-uptime-detail={dayDetails(day)}
                     ></time>
                   ))}
                 </div>

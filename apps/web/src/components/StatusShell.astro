@@ -29,6 +29,8 @@ const { variant, showReviewRail = false, snapshot = buildSnapshot, liveUpdates =
       <a href={site.brand.homeUrl}>{new URL(site.brand.homeUrl).hostname}</a>
     </footer>
   </div>
+  <div class="uptime-tooltip" id="uptime-day-tooltip" role="tooltip" hidden></div>
   <SubscribeDialog {site} />
+  <script is:inline src="/scripts/uptime-history.js"></script>
   {liveUpdates && <script is:inline src="/scripts/live-status.js"></script>}
 </BaseLayout>

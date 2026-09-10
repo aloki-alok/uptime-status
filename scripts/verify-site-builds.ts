@@ -58,7 +58,7 @@ function rejectMarkers(output: string, markers: string[]) {
 await build(exampleConfig);
 const exampleOutput = searchableOutput();
 const exampleManifest = manifest();
-const exampleLogoHash = assetHash("logo-light");
+const exampleLogoHash = assetHash("logo-light.svg");
 requireMarker(exampleOutput, "example service");
 requireMarker(exampleOutput, "public-api");
 rejectMarkers(exampleOutput, ["northwind cloud", "edge-gateway", "europe/london"]);
@@ -66,7 +66,7 @@ rejectMarkers(exampleOutput, ["northwind cloud", "edge-gateway", "europe/london"
 await build(secondConfig);
 const secondOutput = searchableOutput();
 const secondManifest = manifest();
-const secondLogoHash = assetHash("logo-light");
+const secondLogoHash = assetHash("logo-light.svg");
 requireMarker(secondOutput, "northwind cloud");
 requireMarker(secondOutput, "edge-gateway");
 rejectMarkers(secondOutput, ["example service", "public-api", "status.example.com"]);
