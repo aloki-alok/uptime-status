@@ -1,6 +1,6 @@
 # uptime-status
 
-A reusable customer-facing status platform. The repository currently includes a validated site contract, static Astro status UI, Bun setup CLI, a private Uptime Kuma HTTPS publisher, a delivery-disabled AWS CloudFront preview stack, an offline Uptime Kuma 2.2 SQLite history extractor, tested double opt-in and scanner-safe unsubscribe lifecycle foundations, and provider-neutral mail rendering. Production custom-domain deployment, destination history apply, durable subscriber storage, mail transports, and queue workers are not implemented yet.
+A reusable customer-facing status platform. It includes a validated site contract, static Astro status UI, Bun setup CLI, direct HTTPS and private Uptime Kuma publishers, a delivery-disabled AWS CloudFront preview stack, encrypted subscriber storage for Cloudflare D1, queued Resend confirmation delivery, scanner-safe double opt-in, bounce and complaint suppression, provider-neutral mail rendering, and an offline Uptime Kuma 2.2 SQLite history extractor. Production custom-domain activation and destination history apply remain operator-gated.
 
 See the [visual review](docs/visual-review.md) for light and dark screenshots, supported public states, and the interface review checklist.
 

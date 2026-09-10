@@ -20,7 +20,7 @@ The same canonical validator also runs when the web application loads build data
 
 `examples/.env.example` is a variable reference. The repository does not currently provide a command that copies or validates an environment file.
 
-`doctor` checks environment variables named by `environment` secret references in site configuration. The generated template uses `UPTIME_KUMA_CONNECTION`; an SMTP site may choose another variable name. It checks presence only and does not connect to either provider. AWS Secrets Manager references are not resolved by the current command.
+`doctor` checks environment variables named by `environment` secret references in site configuration. The generated template uses `UPTIME_KUMA_CONNECTION`; SMTP and Resend sites may choose another variable name. It checks presence only and does not connect to a provider. AWS Secrets Manager references are not resolved by the current command.
 
 ## Site fields
 
@@ -61,7 +61,7 @@ Never place a monitor URL, API token, SMTP password, AWS key, or subscriber addr
 
 ### Subscriptions
 
-The only production-safe configuration today is delivery-disabled:
+Keep delivery disabled until the selected provider and persistence path pass a canary:
 
 ```json
 {
@@ -73,7 +73,7 @@ The only production-safe configuration today is delivery-disabled:
 }
 ```
 
-The schema also accepts SES and SMTP settings. An in-memory state service and injectable Elysia subscribe and confirm routes exist for deterministic testing, but no durable production repository or delivery adapter exists. Keep `enabled` false for real sites until those implementations and all provider gates are verified.
+The schema accepts SES, SMTP, and Resend settings. The Cloudflare runtime currently supports Resend with D1 and Queues. See [Cloudflare and Resend](cloudflare-resend.md) before changing `enabled` to `true`.
 
 ## Snapshot input
 

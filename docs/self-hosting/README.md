@@ -1,6 +1,6 @@
 # Self-hosting
 
-The repository currently provides a validated site contract, a static Astro status site, generated example data, health probes, site setup CLI, a private Uptime Kuma export consumer, a one-minute AWS snapshot publisher, a delivery-disabled CloudFront preview stack, tested double opt-in and scanner-safe unsubscribe lifecycle foundations, provider-neutral mail rendering, and an offline Uptime Kuma 2.2 SQLite history extractor. Production custom-domain deployment, destination history apply, durable subscriber storage, mail transports, queue workers, and feedback processing are not implemented.
+The repository provides a validated site contract, a static Astro status site, direct HTTPS monitoring, a private Uptime Kuma export consumer, one-minute snapshot publishers, a site setup CLI, a delivery-disabled AWS CloudFront preview, encrypted subscriber storage for Cloudflare D1, queued Resend confirmation delivery, scanner-safe double opt-in, bounce and complaint suppression, provider-neutral mail rendering, and offline Uptime Kuma 2.2 SQLite history inspection. Production activation and destination history apply remain operator-gated.
 
 ## Quick start
 
@@ -61,9 +61,13 @@ This command builds static output only. It does not provision infrastructure, pu
 | History validation, registry, and Uptime Kuma 2.2 SQLite extraction     | Available; preview, apply, rollback, and other extractors are planned    |
 | AWS deployment input, naming, role-boundary, and release-gate contracts | Available                                            |
 | Delivery-disabled AWS preview read path                                 | Available                                            |
-| Subscription state service and injectable public routes                 | Available for tests, not wired to production storage |
-| Provider-neutral mail rendering                                         | Available as a tested library; no transport is wired |
-| SES and SMTP transports, workers, and feedback processing               | Planned                                              |
+| Cloudflare Worker deployment                                            | Available; resource creation remains operator-controlled |
+| Direct HTTPS snapshot publisher                                         | Available                                            |
+| AWS resource provisioning                                               | Planned                                              |
+| Cloudflare subscription state and public routes                         | Available with D1 and Queues                         |
+| Provider-neutral mail rendering and Resend transport                    | Available                                            |
+| Signed Resend bounce and complaint processing                           | Available                                            |
+| SES and SMTP production transports                                      | Planned                                              |
 | Backup and restore automation                                           | Planned                                              |
 
 Do not expose the current example build as a production status service. Its status and history are synthetic.
@@ -75,6 +79,7 @@ Do not expose the current example build as a production status service. Its stat
 - [Kuma history migration](kuma-history-migration.md)
 - [Amazon SES gates](ses.md)
 - [SMTP limitations](smtp.md)
+- [Cloudflare and Resend](cloudflare-resend.md)
 - [Backup and restore](backup-restore.md)
 - [Troubleshooting](troubleshooting.md)
 

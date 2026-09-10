@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Start with the current capability boundary: site initialization, field-level validation, local preview, static builds, private Kuma snapshot publication, a delivery-disabled AWS preview read path, deterministic subscribe, confirmation, and unsubscribe route tests, provider-neutral mail rendering, and offline Uptime Kuma 2.2 SQLite history inspection are available. Production custom-domain deployment, durable subscription storage, destination history apply, and mail transport are planned.
+Start with the current capability boundary: site initialization, field-level validation, local preview, static builds, direct HTTPS and private Kuma publication, a delivery-disabled AWS preview read path, Cloudflare subscription storage, queued Resend confirmation, signed feedback suppression, provider-neutral mail rendering, and offline Uptime Kuma 2.2 SQLite history inspection are available. Destination history apply and additional mail transports are planned.
 
 ## Install or command failures
 
@@ -78,7 +78,7 @@ The response-time section appears only for components with latency data. `showLa
 
 ## Subscription controls say unavailable
 
-This is expected for delivery-disabled sites. The repository has injectable subscribe, confirmation, and scanner-safe unsubscribe routes backed by an in-memory test repository, but the production server does not enable them without a durable repository. Do not enable subscription configuration to work around missing production storage and delivery.
+This is expected for delivery-disabled sites. Do not enable the form until D1, Queues, Resend secrets, the signed webhook, and a full confirmation canary pass. Follow [Cloudflare and Resend](cloudflare-resend.md).
 
 ## SES or SMTP mail does not send
 
