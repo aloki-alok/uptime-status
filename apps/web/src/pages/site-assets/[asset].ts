@@ -5,16 +5,27 @@ import { site, siteAssetPath } from "../../lib/build-data";
 
 export const prerender = true;
 
-const assets = {
+const assets: Record<string, string> = {
   [`logo-light${extname(site.brand.logoLightPath)}`]: site.brand.logoLightPath,
   [`logo-dark${extname(site.brand.logoDarkPath)}`]: site.brand.logoDarkPath,
   [`icon-light${extname(site.brand.iconLightPath)}`]: site.brand.iconLightPath,
   [`icon-dark${extname(site.brand.iconDarkPath)}`]: site.brand.iconDarkPath,
   [`favicon${extname(site.brand.faviconPath)}`]: site.brand.faviconPath,
 };
+if (site.subscriptions.enabled && site.subscriptions.templates?.logoPath) {
+  assets[`mail-logo${extname(site.subscriptions.templates.logoPath)}`] =
+    site.subscriptions.templates.logoPath;
+}
+if (site.subscriptions.enabled && site.subscriptions.templates?.headerMedia) {
+  assets[`mail-header${extname(site.subscriptions.templates.headerMedia.path)}`] =
+    site.subscriptions.templates.headerMedia.path;
+}
 
 const contentTypes: Record<string, string> = {
+  ".gif": "image/gif",
   ".ico": "image/x-icon",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
   ".png": "image/png",
   ".svg": "image/svg+xml",
   ".webp": "image/webp",
