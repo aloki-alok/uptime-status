@@ -204,6 +204,41 @@ describe("D1 subscription repository", () => {
     ).resolves.toBeNull();
   });
 
+  test("recovers expired claims and records permanent delivery failures", async () => {
+    const { database, repository } = await fixture();
+    await repository.commit({ record: subscriber, expectedRevision: null, outbox });
+    await repository.enqueuePending("site-a", { async send() {} }, "2026-09-10T10:00:01.000Z");
+    await repository.claim(message, "queue-message-1", "2026-09-10T10:00:02.000Z", 30);
+
+    const queued: SubscriptionQueueMessage[] = [];
+    await expect(
+      repository.enqueuePending(
+        "site-a",
+        {
+          async send(candidate) {
+            queued.push(candidate);
+          },
+        },
+        "2026-09-10T10:00:33.000Z",
+      ),
+    ).resolves.toBe(1);
+    expect(queued).toEqual([message]);
+
+    await repository.claim(message, "queue-message-2", "2026-09-10T10:00:34.000Z");
+    await expect(
+      repository.markFailed(
+        outbox.outboxId,
+        "queue-message-2",
+        "provider_rejected",
+        "2026-09-10T10:00:35.000Z",
+      ),
+    ).resolves.toBe(true);
+    expect(database.query("SELECT state, failure_code FROM confirmation_outbox").get()).toEqual({
+      state: "failed",
+      failure_code: "provider_rejected",
+    });
+  });
+
   test("enforces fixed-window request limits atomically", async () => {
     const { repository } = await fixture();
     const consume = (nowEpochSeconds: number) =>

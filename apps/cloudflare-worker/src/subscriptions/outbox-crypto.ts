@@ -75,7 +75,10 @@ export async function importOutboxEncryptionKey(rawKey: Uint8Array) {
   if (rawKey.byteLength !== 32) {
     throw new TypeError("Outbox encryption keys must contain exactly 32 bytes");
   }
-  return crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt", "decrypt"]);
+  return crypto.subtle.importKey("raw", rawKey.slice().buffer, "AES-GCM", false, [
+    "encrypt",
+    "decrypt",
+  ]);
 }
 
 export class ConfirmationOutboxCipher {

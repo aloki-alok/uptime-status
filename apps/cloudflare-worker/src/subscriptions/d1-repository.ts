@@ -1,11 +1,11 @@
-import type { SubscriberStatus } from "@uptime-status/domain/subscription";
 import type {
   ConfirmationOutboxRecord,
   SubscriberRecord,
   SubscriptionCommit,
   SubscriptionCommitResult,
   SubscriptionRepository,
-} from "../../../api/src/subscriptions/repository";
+} from "@uptime-status/api/subscriptions/repository";
+import type { SubscriberStatus } from "@uptime-status/domain/subscription";
 import type { ConfirmationOutboxCipher, ConfirmationPayloadIdentity } from "./outbox-crypto";
 
 export type DatabaseResult<T = unknown> = {
@@ -65,7 +65,7 @@ export type SubscriptionQueueMessage = {
 };
 
 export interface SubscriptionQueue {
-  send(message: SubscriptionQueueMessage, options: { contentType: "json" }): Promise<void>;
+  send(message: SubscriptionQueueMessage, options: { contentType: "json" }): Promise<unknown>;
 }
 
 export type ClaimedConfirmation = ConfirmationOutboxRecord & {
@@ -315,6 +315,23 @@ export class D1SubscriptionRepository implements SubscriptionRepository {
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
       throw new TypeError("Outbox enqueue limit must be an integer from 1 to 100");
     }
+    const enqueuedTime = Date.parse(enqueuedAt);
+    if (!Number.isFinite(enqueuedTime)) {
+      throw new TypeError("Outbox enqueue time must be an ISO timestamp");
+    }
+    const staleEnqueuedAt = new Date(enqueuedTime - 15 * 60 * 1000).toISOString();
+    await this.database.batch([
+      this.database
+        .prepare(
+          `UPDATE confirmation_outbox SET state = 'pending', enqueued_at = NULL,
+            claim_id = NULL, claimed_at = NULL, claim_expires_at = NULL
+          WHERE site_id = ?1 AND (
+            (state = 'claimed' AND claim_expires_at <= ?2)
+            OR (state = 'enqueued' AND enqueued_at <= ?3)
+          )`,
+        )
+        .bind(siteId, enqueuedAt, staleEnqueuedAt),
+    ]);
     const pending = await this.database
       .prepare(
         `SELECT outbox_id, site_id FROM confirmation_outbox
@@ -443,6 +460,30 @@ export class D1SubscriptionRepository implements SubscriptionRepository {
           WHERE outbox_id = ?3 AND state = 'claimed' AND claim_id = ?4`,
         )
         .bind(sentAt, providerMessageId, outboxId, claimId),
+    ]);
+    return result[0]?.meta.changes === 1;
+  }
+
+  async markFailed(outboxId: string, claimId: string, failureCode: string, failedAt: string) {
+    if (
+      outboxId.length < 1 ||
+      outboxId.length > 256 ||
+      claimId.length < 1 ||
+      claimId.length > 160 ||
+      !/^[a-z][a-z0-9_-]{0,63}$/.test(failureCode) ||
+      !Number.isFinite(Date.parse(failedAt))
+    ) {
+      throw new TypeError("Failed confirmation identity is invalid");
+    }
+    const result = await this.database.batch([
+      this.database
+        .prepare(
+          `UPDATE confirmation_outbox SET state = 'failed', failed_at = ?1,
+            failure_code = ?2, claim_id = NULL, claimed_at = NULL,
+            claim_expires_at = NULL
+          WHERE outbox_id = ?3 AND state = 'claimed' AND claim_id = ?4`,
+        )
+        .bind(failedAt, failureCode, outboxId, claimId),
     ]);
     return result[0]?.meta.changes === 1;
   }

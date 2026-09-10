@@ -36,6 +36,8 @@ CREATE TABLE confirmation_outbox (
   claim_expires_at TEXT,
   sent_at TEXT,
   provider_message_id TEXT,
+  failed_at TEXT,
+  failure_code TEXT,
   attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
   FOREIGN KEY (site_id, email_key) REFERENCES subscribers(site_id, email_key)
 ) STRICT;
