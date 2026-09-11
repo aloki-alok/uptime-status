@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { type Static, Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 
@@ -90,21 +89,6 @@ export type NotificationEventContent = NotificationEvent extends infer Event
     : never
   : never;
 
-export function notificationEventId(value: NotificationEvent | NotificationEventContent) {
-  const identity = [
-    value.siteId,
-    value.source.kind,
-    value.source.slug,
-    value.type,
-    value.contentRevision,
-  ];
-  return `evt_${createHash("sha256").update(JSON.stringify(identity)).digest("hex")}`;
-}
-
-export function createNotificationEvent(content: NotificationEventContent): NotificationEvent {
-  return { ...content, eventId: notificationEventId(content) } as NotificationEvent;
-}
-
 function isUtcInstant(value: string) {
   const parsed = Date.parse(value);
   return (
@@ -112,10 +96,10 @@ function isUtcInstant(value: string) {
   );
 }
 
-export function validateNotificationEvent(input: unknown): input is NotificationEvent {
+/** Shape and semantics only. Event-ID integrity lives in `notification-authoring`. */
+export function validateNotificationEventShape(input: unknown): input is NotificationEvent {
   if (!Value.Check(NotificationEventSchema, input)) return false;
-  if (!isUtcInstant(input.publishedAt) || input.eventId !== notificationEventId(input))
-    return false;
+  if (!isUtcInstant(input.publishedAt)) return false;
   if (input.source.kind === "incident") return true;
   if (!("startsAt" in input) || !("endsAt" in input)) return false;
   return (

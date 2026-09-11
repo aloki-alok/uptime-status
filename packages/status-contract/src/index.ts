@@ -37,12 +37,14 @@ export type {
   NotificationEventType,
 } from "./notification";
 export {
-  createNotificationEvent,
   NotificationEventSchema,
   NotificationEventTypeSchema,
+} from "./notification";
+export {
+  createNotificationEvent,
   notificationEventId,
   validateNotificationEvent,
-} from "./notification";
+} from "./notification-authoring";
 export type { Incident, StatusSnapshot, StatusState } from "./schema";
 export { StatusSnapshotSchema, validateStatusSnapshot } from "./schema";
 export type { SiteConfig, SiteConfigIssue } from "./site";

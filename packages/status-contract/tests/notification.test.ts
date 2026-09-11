@@ -3,7 +3,7 @@ import {
   createNotificationEvent,
   notificationEventId,
   validateNotificationEvent,
-} from "../src/notification";
+} from "../src/notification-authoring";
 
 const incident = {
   schemaVersion: "1.0.0" as const,
