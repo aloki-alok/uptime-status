@@ -1,6 +1,6 @@
 # Self-hosting
 
-The repository currently provides a validated site contract, a static Astro status site, generated example data, health probes, site setup CLI, tested double opt-in and scanner-safe unsubscribe lifecycle foundations, provider-neutral mail rendering, an offline Uptime Kuma 2.2 SQLite history extractor, and AWS deployment planning contracts. Production AWS resources, live monitoring adapters, destination history preview and apply, durable subscriber storage, mail transports, queue workers, and feedback processing are not implemented.
+The repository currently provides a validated site contract, a static Astro status site, generated example data, health probes, site setup CLI, a private Uptime Kuma export consumer, a one-minute AWS snapshot publisher, a delivery-disabled CloudFront preview stack, tested double opt-in and scanner-safe unsubscribe lifecycle foundations, provider-neutral mail rendering, and an offline Uptime Kuma 2.2 SQLite history extractor. Production custom-domain deployment, destination history apply, durable subscriber storage, mail transports, queue workers, and feedback processing are not implemented.
 
 ## Quick start
 
@@ -57,10 +57,10 @@ This command builds static output only. It does not provision infrastructure, pu
 | API `/healthz` and `/readyz` probes                                     | Available                                            |
 | Site `init`, `validate`, `build`, and `doctor` CLI commands             | Available                                            |
 | Deploy, history import, and admin CLI commands                          | Planned                                              |
-| Uptime Kuma HTTPS adapter and snapshot publisher                        | Planned                                              |
+| Uptime Kuma HTTPS adapter and snapshot publisher                        | Available                                            |
 | History bundle validation and source extractor registry                 | Available; concrete extractors, preview, apply, and rollback are planned |
 | AWS deployment input, naming, role-boundary, and release-gate contracts | Available                                            |
-| AWS resource provisioning                                               | Planned                                              |
+| Delivery-disabled AWS preview read path                                 | Available                                            |
 | Subscription state service and injectable public routes                 | Available for tests, not wired to production storage |
 | Provider-neutral mail rendering                                         | Available as a tested library; no transport is wired |
 | SES and SMTP transports, workers, and feedback processing               | Planned                                              |
@@ -71,6 +71,7 @@ Do not expose the current example build as a production status service. Its stat
 ## Operator guides
 
 - [Configuration](configuration.md)
+- [AWS preview](aws-preview.md)
 - [Kuma history migration](kuma-history-migration.md)
 - [Amazon SES gates](ses.md)
 - [SMTP limitations](smtp.md)

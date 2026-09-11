@@ -53,7 +53,7 @@ The same canonical validator also runs when the web application loads build data
 - `staleAfterSeconds` is an integer from 60 through 900 and must be at least twice the poll interval.
 - Each monitoring `sourceId` is unique.
 - `fixture` sources are allowed only in example mode.
-- An `uptime-kuma` source contains a managed secret reference. The adapter that consumes this reference is planned and is not present in the current repository.
+- An `uptime-kuma` source contains a managed secret reference. The AWS publisher resolves one Secrets Manager secret, validates the private export, and retains the last valid public snapshot when Kuma is unavailable.
 - Each component has a unique `componentId`, a public name and group, a valid `sourceId`, a source-specific `monitorRef`, and a `showLatency` choice.
 - A source and monitor reference pair may map to only one public component.
 
@@ -79,7 +79,7 @@ The schema also accepts SES and SMTP settings. An in-memory state service and in
 
 Production builds require `STATUS_SNAPSHOT_PATH`. The snapshot must pass the shared status schema, contain exactly the component IDs declared by the site, and contain a complete 90-day history for every component. Invalid, missing, extra, or mismatched components stop the build.
 
-The build reads a file. It does not fetch Kuma, repair stale data, or publish output. Snapshot publication is planned.
+The build reads a file. It does not fetch Kuma or publish output. The separate AWS publisher performs that work on a one-minute schedule.
 
 ## Asset boundary
 

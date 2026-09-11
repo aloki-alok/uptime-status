@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Start with the current capability boundary: site initialization, field-level validation, local preview, static builds, deterministic subscribe, confirmation, and unsubscribe route tests, provider-neutral mail rendering, offline Uptime Kuma 2.2 SQLite history inspection, and AWS plan validation are available. Cloud deployment, Kuma publication, durable subscription storage, destination history preview and apply, and mail transport are planned.
+Start with the current capability boundary: site initialization, field-level validation, local preview, static builds, private Kuma snapshot publication, a delivery-disabled AWS preview read path, deterministic subscribe, confirmation, and unsubscribe route tests, provider-neutral mail rendering, and offline Uptime Kuma 2.2 SQLite history inspection are available. Production custom-domain deployment, durable subscription storage, destination history apply, and mail transport are planned.
 
 ## Install or command failures
 
@@ -60,7 +60,7 @@ bun run status validate /absolute/path/status.config.json
 STATUS_SITE_CONFIG=/absolute/path/status.config.json STATUS_SNAPSHOT_PATH=/absolute/path/current.json bun run build
 ```
 
-The snapshot must validate and contain exactly the site's configured component IDs. The repository does not currently fetch or generate a production snapshot from Kuma.
+The snapshot must validate and contain exactly the site's configured component IDs. The AWS publisher can create and refresh it from a compatible private Kuma export. A local static build still requires an existing snapshot file.
 
 ## Assets fail during build
 
