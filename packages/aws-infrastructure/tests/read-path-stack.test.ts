@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
+import type { SiteConfig } from "@uptime-status/domain";
 import { App } from "aws-cdk-lib";
 import { Template } from "aws-cdk-lib/assertions";
 import type { ReadPathDeploymentInputs } from "../src";
@@ -9,6 +10,8 @@ import { ReadPathStack } from "../src";
 
 const ACCOUNT_ID = "123456789012";
 const REGION = "ap-south-1";
+const MONITORING_SECRET_ARN =
+  "arn:aws:secretsmanager:ap-south-1:123456789012:secret:monitoring-abc123";
 let assetRoot = "";
 let publicAssetPath = "";
 let publisherAssetPath = "";
@@ -19,6 +22,29 @@ function previewInput(): ReadPathDeploymentInputs {
     siteId: "example-service",
     environment: "preview",
     aws: { accountId: ACCOUNT_ID, region: REGION },
+    monitoringSecretArn: MONITORING_SECRET_ARN,
+  };
+}
+
+function publisherSite(): SiteConfig {
+  const input = JSON.parse(
+    readFileSync(resolve(import.meta.dir, "../../../examples/status.config.json"), "utf8"),
+  ) as SiteConfig;
+  return {
+    ...input,
+    deploymentMode: "production",
+    monitoring: {
+      pollIntervalSeconds: 60,
+      staleAfterSeconds: 120,
+      sources: [
+        {
+          sourceId: "kuma",
+          adapter: "uptime-kuma",
+          connection: { provider: "aws-secrets-manager", reference: MONITORING_SECRET_ARN },
+        },
+      ],
+    },
+    components: input.components.map((component) => ({ ...component, sourceId: "kuma" })),
   };
 }
 
@@ -29,10 +55,8 @@ function synthesize() {
     publicAssetPath,
     publisherAssetPath,
     publisher: {
-      targetUrl: "https://example.com/health",
-      slug: "website",
-      name: "Website",
-      group: "Services",
+      site: publisherSite(),
+      sourceId: "kuma",
     },
   });
   return Template.fromStack(stack);
@@ -119,12 +143,14 @@ describe("AWS read path", () => {
     expect(publisher?.Properties?.Architectures).toEqual(["arm64"]);
     expect(publisher?.Properties?.Handler).toBe("index.handler");
     expect(publisher?.Properties?.Runtime).toBe("nodejs22.x");
+    expect(publisher?.Properties?.ReservedConcurrentExecutions).toBe(1);
     expect(publisher?.Properties?.Environment?.Variables).toMatchObject({
-      COMPONENT_GROUP: "Services",
-      COMPONENT_NAME: "Website",
-      COMPONENT_SLUG: "website",
-      TARGET_URL: "https://example.com/health",
+      MONITORING_SECRET_ARN,
+      STATUS_SOURCE_ID: "kuma",
     });
+    expect(JSON.parse(publisher?.Properties?.Environment?.Variables?.STATUS_SITE_CONFIG)).toEqual(
+      publisherSite(),
+    );
     expect(publisher?.Properties?.Environment?.Variables?.STATUS_BUCKET.Ref).toBeString();
     template.hasResourceProperties("AWS::Logs::LogGroup", {
       RetentionInDays: 30,
@@ -173,9 +199,11 @@ describe("AWS read path", () => {
     expect(
       statements.some((statement) => JSON.stringify(statement.Action).includes("s3:Delete")),
     ).toBe(false);
-    expect(
-      statements.some((statement) => JSON.stringify(statement.Action).includes("secretsmanager")),
-    ).toBe(false);
+    const secret = statements.find(
+      (statement) => statement.Action === "secretsmanager:GetSecretValue",
+    );
+    expect(secret?.Resource).toBe(MONITORING_SECRET_ARN);
+    expect(JSON.stringify(secret?.Resource)).not.toContain("*");
   });
 
   test("publishes the generated preview endpoint and operational resource identifiers", () => {
@@ -194,7 +222,7 @@ describe("AWS read path", () => {
     );
   });
 
-  test("rejects production, other regions, and non-HTTPS probe targets", () => {
+  test("rejects production, other regions, and a cross-account monitoring secret", () => {
     const app = new App();
     expect(
       () =>
@@ -206,10 +234,8 @@ describe("AWS read path", () => {
           publicAssetPath,
           publisherAssetPath,
           publisher: {
-            targetUrl: "https://example.com/health",
-            slug: "website",
-            name: "Website",
-            group: "Services",
+            site: publisherSite(),
+            sourceId: "kuma",
           },
         }),
     ).toThrow("supports preview deployments only");
@@ -224,27 +250,27 @@ describe("AWS read path", () => {
           publicAssetPath,
           publisherAssetPath,
           publisher: {
-            targetUrl: "https://example.com/health",
-            slug: "website",
-            name: "Website",
-            group: "Services",
+            site: publisherSite(),
+            sourceId: "kuma",
           },
         }),
     ).toThrow("must deploy in ap-south-1");
 
     expect(
       () =>
-        new ReadPathStack(new App(), "InsecureTarget", {
-          deploymentInputs: previewInput(),
+        new ReadPathStack(new App(), "WrongSecret", {
+          deploymentInputs: {
+            ...previewInput(),
+            monitoringSecretArn:
+              "arn:aws:secretsmanager:ap-south-1:999999999999:secret:monitoring-abc123",
+          },
           publicAssetPath,
           publisherAssetPath,
           publisher: {
-            targetUrl: "http://example.com/health",
-            slug: "website",
-            name: "Website",
-            group: "Services",
+            site: publisherSite(),
+            sourceId: "kuma",
           },
         }),
-    ).toThrow("must be a valid HTTPS URL");
+    ).toThrow("deployment account and region");
   });
 });

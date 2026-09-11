@@ -33,7 +33,7 @@ export { createDeploymentNames } from "./naming";
 export type { DeploymentStage, DeploymentStageId } from "./plan";
 export { createDeploymentPlan, deploymentIsReady } from "./plan";
 export type {
-  PublisherComponent,
+  PublisherConfiguration,
   ReadPathDeploymentInputs,
   ReadPathStackProps,
 } from "./read-path-stack";

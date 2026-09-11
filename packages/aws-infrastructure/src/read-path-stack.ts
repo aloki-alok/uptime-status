@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import { type SiteConfig, validateSiteConfig } from "@uptime-status/domain";
 import {
   App,
   CfnOutput,
@@ -23,23 +24,21 @@ import { createDeploymentNames } from "./naming";
 
 const DEFAULT_PUBLISHER_ASSET_PATH = fileURLToPath(new URL("../../snapshot/dist", import.meta.url));
 
-export type PublisherComponent = {
-  targetUrl: string;
-  slug: string;
-  name: string;
-  group: string;
-};
-
 export type ReadPathDeploymentInputs = Pick<
   DeploymentInputs,
-  "schemaVersion" | "siteId" | "aws"
+  "schemaVersion" | "siteId" | "aws" | "monitoringSecretArn"
 > & { environment: "preview" };
+
+export type PublisherConfiguration = {
+  site: SiteConfig;
+  sourceId: string;
+};
 
 export type ReadPathStackProps = Omit<StackProps, "env"> & {
   deploymentInputs: ReadPathDeploymentInputs;
   publicAssetPath: string;
   publisherAssetPath?: string;
-  publisher: PublisherComponent;
+  publisher: PublisherConfiguration;
 };
 
 function assertReadPathDeploymentInputs(inputs: ReadPathDeploymentInputs) {
@@ -58,23 +57,49 @@ function assertReadPathDeploymentInputs(inputs: ReadPathDeploymentInputs) {
   if (inputs.aws.region !== "ap-south-1") {
     throw new TypeError("The first read-path stack must deploy in ap-south-1");
   }
+  const secretPrefix = `arn:aws:secretsmanager:${inputs.aws.region}:${inputs.aws.accountId}:secret:`;
+  if (
+    !inputs.monitoringSecretArn.startsWith(secretPrefix) ||
+    inputs.monitoringSecretArn.length === secretPrefix.length
+  ) {
+    throw new TypeError(
+      "monitoringSecretArn must identify a secret in the deployment account and region",
+    );
+  }
 }
 
-function assertPublisherComponent(component: PublisherComponent) {
-  let target: URL;
-  try {
-    target = new URL(component.targetUrl);
-  } catch {
-    throw new TypeError("publisher.targetUrl must be a valid HTTPS URL");
+function publisherEnvironment(
+  publisher: PublisherConfiguration,
+  secretArn: string,
+  bucket: string,
+) {
+  if (!validateSiteConfig(publisher.site) || publisher.site.subscriptions.enabled) {
+    throw new TypeError("publisher.site must be a valid delivery-disabled site configuration");
   }
-  if (target.protocol !== "https:") {
-    throw new TypeError("publisher.targetUrl must be a valid HTTPS URL");
+  const source = publisher.site.monitoring.sources.find(
+    (candidate) => candidate.sourceId === publisher.sourceId,
+  );
+  if (
+    source?.adapter !== "uptime-kuma" ||
+    publisher.site.components.some((component) => component.sourceId !== publisher.sourceId)
+  ) {
+    throw new TypeError("publisher.sourceId must own every component through Uptime Kuma");
   }
-  for (const [field, value] of Object.entries(component)) {
-    if (typeof value !== "string" || value.trim() !== value || value.length === 0) {
-      throw new TypeError(`publisher.${field} must be a non-empty trimmed string`);
-    }
+  const environment = {
+    STATUS_BUCKET: bucket,
+    MONITORING_SECRET_ARN: secretArn,
+    STATUS_SITE_CONFIG: JSON.stringify(publisher.site),
+    STATUS_SOURCE_ID: publisher.sourceId,
+  };
+  const environmentBytes = Object.entries(environment).reduce(
+    (total, [key, value]) =>
+      total + Buffer.byteLength(key, "utf8") + Buffer.byteLength(value, "utf8"),
+    0,
+  );
+  if (environmentBytes > 3_800) {
+    throw new TypeError("publisher environment exceeds the safe Lambda configuration limit");
   }
+  return environment;
 }
 
 function routeRewriteCode() {
@@ -101,7 +126,6 @@ export class ReadPathStack extends Stack {
   constructor(scope: Construct, id: string, props: ReadPathStackProps) {
     const inputs = props.deploymentInputs;
     assertReadPathDeploymentInputs(inputs);
-    assertPublisherComponent(props.publisher);
 
     const {
       deploymentInputs: _,
@@ -229,14 +253,19 @@ export class ReadPathStack extends Stack {
       logGroup: publisherLogGroup,
       memorySize: 256,
       timeout: Duration.seconds(30),
-      environment: {
-        STATUS_BUCKET: this.bucket.bucketName,
-        TARGET_URL: publisher.targetUrl,
-        COMPONENT_SLUG: publisher.slug,
-        COMPONENT_NAME: publisher.name,
-        COMPONENT_GROUP: publisher.group,
-      },
+      reservedConcurrentExecutions: 1,
+      environment: publisherEnvironment(
+        publisher,
+        inputs.monitoringSecretArn,
+        this.bucket.bucketName,
+      ),
     });
+    this.publisherFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["secretsmanager:GetSecretValue"],
+        resources: [inputs.monitoringSecretArn],
+      }),
+    );
     this.publisherFunction.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["s3:GetObject"],

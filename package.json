@@ -21,6 +21,8 @@
     "test:layout": "bun scripts/verify-test-layout.ts",
     "test:sites": "bun scripts/verify-site-builds.ts",
     "test:e2e": "bunx playwright test",
+    "build:aws-publisher": "bun run --cwd packages/snapshot build:lambda",
+    "synth:aws-preview": "bun run --cwd packages/aws-infrastructure synth:preview",
     "check": "bun run lint && bun run test:layout && bun run typecheck && bun test && bun run test:sites && bun run build",
     "check:all": "bun run check && bun run test:e2e"
   },
