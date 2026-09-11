@@ -1,5 +1,6 @@
 import { type Static, Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+import { PUBLIC_HISTORY_WINDOW_DAYS } from "./schema";
 
 const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;
@@ -56,7 +57,10 @@ const ExportComponentSchema = Type.Object(
     latestCheckAt: Type.String(),
     responseTimeMs: Type.Union([Type.Number({ minimum: 0 }), Type.Null()]),
     latency: Type.Array(LatencyPointSchema, { maxItems: 60 }),
-    history: Type.Array(HistoryDaySchema, { minItems: 90, maxItems: 90 }),
+    history: Type.Array(HistoryDaySchema, {
+      minItems: PUBLIC_HISTORY_WINDOW_DAYS,
+      maxItems: PUBLIC_HISTORY_WINDOW_DAYS,
+    }),
   },
   { additionalProperties: false },
 );

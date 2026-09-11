@@ -48,7 +48,10 @@
           "reference": "UPTIME_KUMA_CONNECTION"
         }
       }
-    ]
+    ],
+    "retention": {
+      "dailyDays": 360
+    }
   },
   "components": [
     {

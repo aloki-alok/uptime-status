@@ -1,4 +1,5 @@
 import type { Incident, StatusSnapshot, StatusState } from "./schema";
+import { PUBLIC_HISTORY_WINDOW_DAYS } from "./schema";
 import type { SiteConfig } from "./site";
 import { deriveOverallStatus } from "./truth";
 
@@ -27,7 +28,7 @@ const defaultComponents = [
 ];
 
 function createHistory(endDate: Date, seed: number) {
-  return Array.from({ length: 90 }, (_, index) => {
+  return Array.from({ length: PUBLIC_HISTORY_WINDOW_DAYS }, (_, index) => {
     const date = new Date(endDate.getTime() - (89 - index) * DAY_MS);
     const hasBlip = (index + seed) % 37 === 0;
     return {

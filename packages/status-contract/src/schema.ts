@@ -2,6 +2,9 @@ import { FormatRegistry, type Static, Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
 import { deriveOverallStatus } from "./truth";
 
+/** Days of daily history the public page renders. Retention may never fall below this. */
+export const PUBLIC_HISTORY_WINDOW_DAYS = 90;
+
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 const ISO_DATE_TIME =
   /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/;
@@ -95,7 +98,10 @@ export const ComponentSchema = Type.Object(
       Type.Array(LatencyPointSchema, { minItems: 1, maxItems: 120 }),
       Type.Null(),
     ]),
-    history: Type.Array(DailyStatusSchema, { minItems: 90, maxItems: 90 }),
+    history: Type.Array(DailyStatusSchema, {
+      minItems: PUBLIC_HISTORY_WINDOW_DAYS,
+      maxItems: PUBLIC_HISTORY_WINDOW_DAYS,
+    }),
   },
   { additionalProperties: false },
 );

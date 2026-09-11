@@ -46,7 +46,11 @@ export {
   validateNotificationEvent,
 } from "./notification-authoring";
 export type { Incident, StatusSnapshot, StatusState } from "./schema";
-export { StatusSnapshotSchema, validateStatusSnapshot } from "./schema";
+export {
+  PUBLIC_HISTORY_WINDOW_DAYS,
+  StatusSnapshotSchema,
+  validateStatusSnapshot,
+} from "./schema";
 export type { SiteConfig, SiteConfigIssue } from "./site";
 export {
   SiteConfigSchema,

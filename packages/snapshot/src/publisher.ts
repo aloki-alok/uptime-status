@@ -1,12 +1,14 @@
 import {
   deriveOverallStatus,
+  PUBLIC_HISTORY_WINDOW_DAYS,
   type StatusSnapshot,
   type StatusState,
   validateStatusSnapshot,
 } from "@uptime-status/domain/snapshot";
 
 const DAY_MS = 86_400_000;
-const HISTORY_DAYS = 90;
+// One definition of the public window, shared with the contract and the retention floor guard.
+const HISTORY_DAYS = PUBLIC_HISTORY_WINDOW_DAYS;
 const DEFAULT_TIMEOUT_MS = 10_000;
 const COMPONENT_SLUG = /^[a-z0-9-]+$/;
 

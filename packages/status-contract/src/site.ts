@@ -1,5 +1,6 @@
 import { type Static, Type } from "@sinclair/typebox";
 import { Value } from "@sinclair/typebox/value";
+import { PUBLIC_HISTORY_WINDOW_DAYS } from "./schema";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const HOST_LABEL = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i;
@@ -20,6 +21,10 @@ const NonBlankStringSchema = Type.String({
   maxLength: 180,
   pattern: "\\S",
 });
+const StatusCodeRangeSchema = Type.String({ pattern: "^\\d{3}(-\\d{3})?$" });
+
+// Matches the fixed 90-entry daily history array (schema.ts, uptime-kuma-export.ts) and the
+// snapshot publisher's HISTORY_DAYS; no exported constant existed to import across packages.
 
 const SecretReferenceSchema = Type.Object(
   {
@@ -53,6 +58,12 @@ const HttpsSourceSchema = Type.Object(
     adapter: Type.Literal("https"),
     url: HttpsUrlSchema,
     timeoutMs: Type.Optional(Type.Integer({ minimum: 100, maximum: 60_000 })),
+    // default 60
+    intervalSeconds: Type.Optional(Type.Integer({ minimum: 10, maximum: 3600 })),
+    // default ["200-299"]
+    acceptedStatus: Type.Optional(Type.Array(StatusCodeRangeSchema, { minItems: 1, maxItems: 10 })),
+    // default 1
+    confirmRetries: Type.Optional(Type.Integer({ minimum: 0, maximum: 5 })),
   },
   { additionalProperties: false },
 );
@@ -272,6 +283,19 @@ export const SiteConfigSchema = Type.Object(
             minItems: 1,
           },
         ),
+        retention: Type.Optional(
+          Type.Object(
+            {
+              // Days of daily rollups to keep. Defaults to 360. The only setting here that
+              // deletes history rather than changing behaviour, hence the floor guard below.
+              // Raw check retention is deliberately not configurable: see CHECK_RETENTION_DAYS.
+              dailyDays: Type.Optional(
+                Type.Integer({ minimum: PUBLIC_HISTORY_WINDOW_DAYS, maximum: 3650 }),
+              ),
+            },
+            { additionalProperties: false },
+          ),
+        ),
       },
       { additionalProperties: false },
     ),
@@ -349,6 +373,12 @@ function isTrimmedNonBlank(value: string) {
   return value === value.trim() && value.length > 0;
 }
 
+function isValidStatusRange(value: string) {
+  const [low, high] = value.split("-").map(Number);
+  const ceiling = high ?? low;
+  return low >= 100 && low <= 599 && ceiling >= 100 && ceiling <= 599 && low <= ceiling;
+}
+
 export function semanticForeground(color: string) {
   return contrast(color, "#ffffff") >= contrast(color, "#101513") ? "#ffffff" : "#101513";
 }
@@ -398,11 +428,29 @@ export function siteConfigIssues(input: unknown): SiteConfigIssue[] {
     add("/community/url", "must be an HTTPS URL without credentials, query, or fragment");
   }
   config.monitoring.sources.forEach((source, index) => {
-    if (source.adapter === "https" && !isHttpsUrl(source.url)) {
+    if (source.adapter !== "https") return;
+    if (!isHttpsUrl(source.url)) {
       add(
         `/monitoring/sources/${index}/url`,
         "must be an HTTPS URL without credentials, query, or fragment",
       );
+    }
+    source.acceptedStatus?.forEach((code, codeIndex) => {
+      if (!isValidStatusRange(code)) {
+        add(
+          `/monitoring/sources/${index}/acceptedStatus/${codeIndex}`,
+          "must be a valid HTTP status code (100-599) or an ascending range like 200-299",
+        );
+      }
+    });
+    if (source.timeoutMs !== undefined) {
+      const intervalMs = (source.intervalSeconds ?? 60) * 1000;
+      if (source.timeoutMs >= intervalMs) {
+        add(
+          `/monitoring/sources/${index}/timeoutMs`,
+          "must be less than intervalSeconds in milliseconds, otherwise a check outlives its own interval and overlaps itself",
+        );
+      }
     }
   });
 
@@ -506,6 +554,15 @@ export function siteConfigIssues(input: unknown): SiteConfigIssue[] {
   });
   if (config.monitoring.staleAfterSeconds < config.monitoring.pollIntervalSeconds * 2) {
     add("/monitoring/staleAfterSeconds", "must be at least two polling intervals");
+  }
+  if (config.monitoring.retention) {
+    const dailyDays = config.monitoring.retention.dailyDays ?? 360;
+    if (dailyDays < PUBLIC_HISTORY_WINDOW_DAYS) {
+      add(
+        "/monitoring/retention/dailyDays",
+        `must retain at least ${PUBLIC_HISTORY_WINDOW_DAYS} days: cannot retain less history than the page displays`,
+      );
+    }
   }
 
   const colors = Object.entries(config.presentation.semanticColors);

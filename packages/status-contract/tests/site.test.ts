@@ -333,4 +333,127 @@ describe("site configuration", () => {
       }),
     ).toBe(false);
   });
+
+  test("accepts a bare HTTPS source and no retention block (backwards compatible)", () => {
+    expect(
+      validateSiteConfig({
+        ...example,
+        monitoring: {
+          ...example.monitoring,
+          sources: [{ sourceId: "sample", adapter: "https", url: "https://example.com/health" }],
+        },
+        components: example.components.map((component) => ({
+          ...component,
+          sourceId: "sample",
+        })),
+      }),
+    ).toBe(true);
+  });
+
+  test("rejects a retention window shorter than the public history display", () => {
+    expect(
+      siteConfigIssues({
+        ...example,
+        monitoring: { ...example.monitoring, retention: { dailyDays: 60 } },
+      }),
+    ).toContainEqual(expect.objectContaining({ path: "/monitoring/retention/dailyDays" }));
+  });
+
+  test("rejects malformed accepted-status entries on an HTTPS source", () => {
+    const source = {
+      sourceId: "website",
+      adapter: "https",
+      url: "https://example.com/health",
+    } as const;
+    expect(
+      validateSiteConfig({
+        ...example,
+        monitoring: {
+          ...example.monitoring,
+          sources: [{ ...source, acceptedStatus: ["200-199"] }],
+        },
+        components: example.components.map((component) => ({
+          ...component,
+          sourceId: source.sourceId,
+        })),
+      }),
+    ).toBe(false);
+    expect(
+      validateSiteConfig({
+        ...example,
+        monitoring: {
+          ...example.monitoring,
+          sources: [{ ...source, acceptedStatus: ["999"] }],
+        },
+        components: example.components.map((component) => ({
+          ...component,
+          sourceId: source.sourceId,
+        })),
+      }),
+    ).toBe(false);
+  });
+
+  test("rejects a timeout that outlives its own polling interval", () => {
+    expect(
+      validateSiteConfig({
+        ...example,
+        monitoring: {
+          ...example.monitoring,
+          sources: [
+            {
+              sourceId: "website",
+              adapter: "https",
+              url: "https://example.com/health",
+              intervalSeconds: 60,
+              timeoutMs: 90_000,
+            },
+          ],
+        },
+        components: example.components.map((component) => ({
+          ...component,
+          sourceId: "website",
+        })),
+      }),
+    ).toBe(false);
+  });
+
+  test("rejects a retention key that is no longer configurable", () => {
+    // checkDays was removed: raw-check retention is a constant, not a setting.
+    expect(
+      siteConfigIssues({
+        ...example,
+        monitoring: {
+          ...example.monitoring,
+          retention: { dailyDays: 180, checkDays: 7 },
+        },
+      }),
+    ).not.toEqual([]);
+  });
+
+  test("accepts a fully populated HTTPS source and retention block", () => {
+    expect(
+      validateSiteConfig({
+        ...example,
+        monitoring: {
+          ...example.monitoring,
+          sources: [
+            {
+              sourceId: "website",
+              adapter: "https",
+              url: "https://example.com/health",
+              timeoutMs: 5_000,
+              intervalSeconds: 30,
+              acceptedStatus: ["200-299", "301"],
+              confirmRetries: 2,
+            },
+          ],
+          retention: { dailyDays: 180 },
+        },
+        components: example.components.map((component) => ({
+          ...component,
+          sourceId: "website",
+        })),
+      }),
+    ).toBe(true);
+  });
 });
