@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@uptime-status/domain": "workspace:*",
+    "@uptime-status/monitor": "workspace:*",
     "@uptime-status/uptime-math": "workspace:*"
   }
 }

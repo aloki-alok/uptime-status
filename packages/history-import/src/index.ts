@@ -27,3 +27,4 @@ export {
   immutableRequest,
   validateHistoryExtractionRequest,
 } from "./request";
+export { SqliteHistoryDestination } from "./sqlite-destination";
