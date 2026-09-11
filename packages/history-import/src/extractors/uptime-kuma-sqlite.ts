@@ -5,11 +5,9 @@ import {
   type HistoryImportBundle,
   type HistoryImportBundleContent,
 } from "@uptime-status/domain";
+import { confirmedDownIntervals, rollUpDay, type UptimeCheckRow } from "@uptime-status/uptime-math";
 import type { HistoryExtractor } from "../registry";
 import type { HistoryExtractionRequest, HistoryMapping } from "../request";
-
-const DOWN = 0;
-const SUSTAINED_DOWN_SECONDS = 600;
 
 type DailyRow = {
   timestamp: number;
@@ -18,9 +16,6 @@ type DailyRow = {
   down: number;
   extras: string | null;
 };
-
-type HeartbeatRow = { timestamp: number; status: number };
-type Interval = { start: number; end: number };
 
 const REQUIRED_COLUMNS = {
   heartbeat: ["monitor_id", "important", "status", "time"],
@@ -63,39 +58,6 @@ function assertSchema(database: Database) {
   }
 }
 
-function confirmedDownIntervals(rows: HeartbeatRow[], windowStart: number, cutoff: number) {
-  const intervals: Interval[] = [];
-  let downSince: number | null = null;
-
-  for (const row of rows) {
-    if (row.timestamp < windowStart) {
-      downSince = row.status === DOWN ? windowStart : null;
-      continue;
-    }
-    if (row.status === DOWN && downSince === null) downSince = row.timestamp;
-    if (row.status !== DOWN && downSince !== null) {
-      intervals.push({ start: downSince, end: Math.min(row.timestamp, cutoff) });
-      downSince = null;
-    }
-  }
-  if (downSince !== null && downSince < cutoff) intervals.push({ start: downSince, end: cutoff });
-  return intervals;
-}
-
-function overlapSeconds(intervals: Interval[], start: number, end: number) {
-  return intervals.reduce((total, interval) => {
-    const overlap = Math.min(interval.end, end) - Math.max(interval.start, start);
-    return total + Math.max(0, overlap);
-  }, 0);
-}
-
-function longestOverlapSeconds(intervals: Interval[], start: number, end: number) {
-  return intervals.reduce((longest, interval) => {
-    const overlap = Math.min(interval.end, end) - Math.max(interval.start, start);
-    return Math.max(longest, overlap);
-  }, 0);
-}
-
 function maintenanceCount(extras: string | null) {
   if (!extras) return 0;
   try {
@@ -129,40 +91,21 @@ function dailyHistory(database: Database, mapping: HistoryMapping, cutoff: numbe
 
   const windowStart = rows[0].timestamp;
   const heartbeats = database
-    .query<HeartbeatRow, [number, number]>(
+    .query<UptimeCheckRow, [number, number]>(
       "SELECT CAST(strftime('%s', time) AS INTEGER) AS timestamp, status FROM heartbeat WHERE monitor_id = ? AND important = 1 AND time <= datetime(?, 'unixepoch') ORDER BY time ASC",
     )
     .all(monitorId, cutoff);
   const intervals = confirmedDownIntervals(heartbeats, windowStart, cutoff);
 
-  return rows.map((row) => {
-    const start = row.timestamp;
-    const end = start + 86_400;
-    const downSeconds = overlapSeconds(intervals, start, end);
-    const longestDown = longestOverlapSeconds(intervals, start, end);
-    const maintenance = maintenanceCount(row.extras);
-    const severity =
-      downSeconds > 0 ? (longestDown >= SUSTAINED_DOWN_SECONDS ? "major" : "minor") : "none";
-    const state =
-      severity === "major"
-        ? "major_outage"
-        : severity === "minor"
-          ? "degraded"
-          : maintenance > 0
-            ? "maintenance"
-            : "operational";
-    return {
-      date: new Date(start * 1000).toISOString().slice(0, 10),
-      state,
-      severity,
-      uptime: Math.round((100 - (downSeconds / 86_400) * 100) * 1000) / 1000,
-      downMinutes: Math.round(downSeconds / 60),
-      avgMs:
-        row.up > 0 && Number.isFinite(row.ping) && row.ping >= 0
-          ? Math.round(row.ping * 100) / 100
-          : null,
-    } as const;
-  });
+  return rows.map((row) =>
+    rollUpDay({
+      start: row.timestamp,
+      intervals,
+      maintenance: maintenanceCount(row.extras),
+      up: row.up,
+      ping: row.ping,
+    }),
+  );
 }
 
 export class UptimeKumaSqliteExtractor implements HistoryExtractor {

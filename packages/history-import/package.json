@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@uptime-status/domain": "workspace:*"
+    "@uptime-status/domain": "workspace:*",
+    "@uptime-status/uptime-math": "workspace:*"
   }
 }

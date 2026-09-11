@@ -74,6 +74,14 @@
       "version": "0.1.0",
       "dependencies": {
         "@uptime-status/domain": "workspace:*",
+        "@uptime-status/uptime-math": "workspace:*",
+      },
+    },
+    "packages/monitor": {
+      "name": "@uptime-status/monitor",
+      "version": "0.1.0",
+      "dependencies": {
+        "@uptime-status/uptime-math": "workspace:*",
       },
     },
     "packages/snapshot": {
@@ -91,6 +99,10 @@
       "dependencies": {
         "@sinclair/typebox": "0.34.52",
       },
+    },
+    "packages/uptime-math": {
+      "name": "@uptime-status/uptime-math",
+      "version": "0.1.0",
     },
   },
   "packages": {
@@ -496,7 +508,11 @@
 
     "@uptime-status/history-import": ["@uptime-status/history-import@workspace:packages/history-import"],
 
+    "@uptime-status/monitor": ["@uptime-status/monitor@workspace:packages/monitor"],
+
     "@uptime-status/snapshot": ["@uptime-status/snapshot@workspace:packages/snapshot"],
+
+    "@uptime-status/uptime-math": ["@uptime-status/uptime-math@workspace:packages/uptime-math"],
 
     "@uptime-status/web": ["@uptime-status/web@workspace:apps/web"],
 
