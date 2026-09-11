@@ -107,7 +107,10 @@ const historyDate = new Intl.DateTimeFormat(site.locale, {
 function dayDetails(day: StatusSnapshot["components"][number]["history"][number]) {
   const uptime = day.uptime === null ? "No uptime data." : `${day.uptime}% uptime.`;
   const down = `${day.downMinutes} ${day.downMinutes === 1 ? "minute" : "minutes"} down.`;
-  return `${historyDate.format(new Date(`${day.date}T00:00:00Z`))}. ${stateLabels[day.state]}. ${uptime} ${down}`;
+  // Days are UTC buckets for every reader, so say so: without it a viewer outside UTC
+  // reasonably reads the date as local and two people mean different windows by "Apr 2".
+  const date = `${historyDate.format(new Date(`${day.date}T00:00:00Z`))} (UTC)`;
+  return `${date}. ${stateLabels[day.state]}. ${uptime} ${down}`;
 }
 ---
 
