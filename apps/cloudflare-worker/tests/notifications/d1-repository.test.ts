@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { createNotificationEvent } from "@uptime-status/domain/notification";
+import { createNotificationEvent } from "@uptime-status/domain/notification-authoring";
 import type { SubscriberRecord } from "../../../api/src/subscriptions/repository";
 import {
   D1NotificationRepository,

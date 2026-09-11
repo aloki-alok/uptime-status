@@ -1,14 +1,10 @@
+import type { NotificationEvent } from "@uptime-status/domain/notification";
 import type { DatabasePort } from "../subscriptions/d1-repository";
 
-type NotificationEventType =
-  | "incident_published"
-  | "incident_updated"
-  | "incident_resolved"
-  | "maintenance_scheduled"
-  | "maintenance_rescheduled"
-  | "maintenance_started"
-  | "maintenance_cancelled"
-  | "maintenance_completed";
+// Re-exported so notification consumers keep one event type instead of a looser local copy.
+export type { NotificationEvent };
+
+type NotificationEventType = NotificationEvent["type"];
 
 const INCIDENT_TYPES = new Set<NotificationEventType>([
   "incident_published",
@@ -22,26 +18,6 @@ const MAINTENANCE_TYPES = new Set<NotificationEventType>([
   "maintenance_cancelled",
   "maintenance_completed",
 ]);
-
-export type NotificationEvent = {
-  schemaVersion: "1.0.0";
-  eventId: string;
-  siteId: string;
-  source: {
-    kind: "incident" | "maintenance";
-    slug: string;
-    revision: number;
-    updateId?: string;
-  };
-  type: NotificationEventType;
-  contentRevision: string;
-  templateRevision: "1";
-  title: string;
-  message: string;
-  publishedAt: string;
-  startsAt?: string;
-  endsAt?: string;
-};
 
 export type NotificationQueueMessage = {
   schemaVersion: "1.0.0";
@@ -90,6 +66,10 @@ type PendingRow = {
   event_id: string;
   site_id: string;
   email_key: string;
+};
+
+type ExpandableEventRow = {
+  event_id: string;
 };
 
 type ClaimedRow = {
@@ -326,6 +306,22 @@ export class D1NotificationRepository {
       created: results.slice(0, -1).reduce((count, result) => count + result.meta.changes, 0),
       complete: false,
     };
+  }
+
+  async listExpandableEventIds(siteId: string, limit = 10) {
+    requireIdentifier(siteId, "Site ID", 80);
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 50) {
+      throw new TypeError("Expandable event limit must be an integer from 1 to 50");
+    }
+    const rows = await this.database
+      .prepare(
+        `SELECT event_id FROM notification_events
+        WHERE site_id = ?1 AND expanded_at IS NULL
+        ORDER BY created_at, event_id LIMIT ?2`,
+      )
+      .bind(siteId, limit)
+      .all<ExpandableEventRow>();
+    return rows.results.map((row) => row.event_id);
   }
 
   async enqueuePending(siteId: string, queue: NotificationQueue, enqueuedAt: string, limit = 25) {
