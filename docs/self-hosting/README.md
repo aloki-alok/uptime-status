@@ -58,7 +58,7 @@ This command builds static output only. It does not provision infrastructure, pu
 | Site `init`, `validate`, `build`, and `doctor` CLI commands             | Available                                            |
 | Deploy, history import, and admin CLI commands                          | Planned                                              |
 | Uptime Kuma HTTPS adapter and snapshot publisher                        | Available                                            |
-| History bundle validation and source extractor registry                 | Available; concrete extractors, preview, apply, and rollback are planned |
+| History validation, registry, and Uptime Kuma 2.2 SQLite extraction     | Available; preview, apply, rollback, and other extractors are planned    |
 | AWS deployment input, naming, role-boundary, and release-gate contracts | Available                                            |
 | Delivery-disabled AWS preview read path                                 | Available                                            |
 | Subscription state service and injectable public routes                 | Available for tests, not wired to production storage |

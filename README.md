@@ -1,6 +1,6 @@
 # uptime-status
 
-A reusable customer-facing status platform. The repository currently includes a validated site contract, static Astro status UI, Bun setup CLI, tested double opt-in and scanner-safe unsubscribe lifecycle foundations, provider-neutral mail rendering, an offline Uptime Kuma 2.2 SQLite history extractor, and AWS deployment planning contracts. Cloud resources, live monitoring adapters, durable history and subscriber storage, mail transports, and queue workers are not implemented yet.
+A reusable customer-facing status platform. The repository currently includes a validated site contract, static Astro status UI, Bun setup CLI, a private Uptime Kuma HTTPS publisher, a delivery-disabled AWS CloudFront preview stack, an offline Uptime Kuma 2.2 SQLite history extractor, tested double opt-in and scanner-safe unsubscribe lifecycle foundations, and provider-neutral mail rendering. Production custom-domain deployment, destination history apply, durable subscriber storage, mail transports, and queue workers are not implemented yet.
 
 See the [visual review](docs/visual-review.md) for light and dark screenshots, supported public states, and the interface review checklist.
 
@@ -41,14 +41,7 @@ bun run status build --site ./my-status/status.config.json --snapshot ./current.
 Create a sanitized history bundle from a transactionally consistent offline Uptime Kuma backup:
 
 ```sh
-bun run status history inspect \
-  --site ./my-status/status.config.json \
-  --source primary \
-  --artifact /secure/kuma-history-backup.sqlite \
-  --cutoff 2026-09-09T04:00:00Z \
-  --exported 2026-09-09T04:05:00Z \
-  --source-version 2.2.0 \
-  --out /secure/history.bundle.json
+bun run status history inspect --site ./my-status/status.config.json --source primary --artifact /secure/kuma-history-backup.sqlite --cutoff 2026-09-09T04:00:00Z --exported 2026-09-09T04:05:00Z --source-version 2.2.0 --out /secure/history.bundle.json
 ```
 
 The inspect command reads only an offline backup, checks its integrity and allowlisted schema, verifies its identity before and after extraction, and writes a mode `0600` provider-neutral bundle. It does not provision AWS, connect through SSH, change DNS, touch the live Kuma database, or send email.

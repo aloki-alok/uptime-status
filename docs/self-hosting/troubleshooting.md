@@ -86,7 +86,7 @@ No delivery adapter exists yet. Follow [Amazon SES gates](ses.md) or [SMTP limit
 
 ## History import command is missing
 
-The normalized bundle validator exists, but extraction, preview, and apply commands do not. Preserve a consistent source backup or dump and its checksum, then stop. Do not query or transform a live monitoring database from this application. See [History migration](kuma-history-migration.md).
+The normalized bundle validator and Uptime Kuma 2.2 SQLite inspection command exist, but preview and apply commands do not. Preserve a transactionally consistent offline source backup and its checksum, run the documented read-only inspection flow, then stop before destination writes. Do not query or transform a live monitoring database from this application. See [History migration](kuma-history-migration.md).
 
 ## API probe checks
 
