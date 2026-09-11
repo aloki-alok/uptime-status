@@ -9,6 +9,8 @@ export {
   publishProbeSnapshot,
   SnapshotTopologyError,
 } from "./publisher";
+export type { BuildSnapshotFromStoreOptions } from "./store-publisher";
+export { buildSnapshotFromStore } from "./store-publisher";
 export type {
   UptimeKumaPublisherConfig,
   UptimeKumaPublisherDependencies,
