@@ -15,7 +15,7 @@ This page shows the default example site. Every deployment supplies its own name
 - A single current-state banner with the latest confirmed check time.
 - Exactly three public status categories: Operational, Maintenance, and Outage.
 - Ninety days of history for each component.
-- Response-time charts for components that enable latency.
+- Response-time charts with exact per-observation details on hover, tap, or keyboard focus.
 - Dedicated incident and maintenance history pages.
 - A subscription action only when the site has a complete delivery configuration.
 
@@ -36,6 +36,7 @@ Review the page at desktop and mobile widths, in both themes, and with reduced m
 - Operational, maintenance, and outage remain distinguishable without relying on color alone.
 - Long service names wrap without horizontal scrolling.
 - Keyboard focus is visible on links, buttons, the theme control, and the subscription dialog.
+- Missing response-time checks remain visible gaps, and graph details stay inside the card at mobile widths.
 - A stale snapshot stops claiming that systems are operational.
 
 Use `bun run check:all` for the complete automated review across Chromium, WebKit, and the 390 px mobile viewport.

@@ -75,6 +75,7 @@ describe("Cloudflare status worker", () => {
     const stale = JSON.parse(kv.values.get(currentKey) ?? "{}");
     stale.latestCheckAt = "2026-01-01T00:00:00.000Z";
     stale.components[0].latestObservedAt = "2026-01-01T00:00:00.000Z";
+    stale.components[0].latency[0].observedAt = "2026-01-01T00:00:00.000Z";
     kv.values.set(currentKey, JSON.stringify(stale));
     let probes = 0;
     const refreshingWorker = createWorker(async () => {

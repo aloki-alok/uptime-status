@@ -3,6 +3,8 @@ const REFRESH_INTERVAL_MS = Number(configRoot?.dataset.refreshIntervalMs) || 60_
 const REQUEST_TIMEOUT_MS = 8_000;
 const STALE_AFTER_MS = Number(configRoot?.dataset.staleAfterMs) || 120_000;
 const MAX_FUTURE_SKEW_MS = 60_000;
+const MAX_LATENCY_MS = 3_600_000;
+const MAX_SAMPLES_PER_POINT = 10_000;
 const states = new Set([
   "operational",
   "degraded",
@@ -72,6 +74,7 @@ const siteTime = new Intl.DateTimeFormat(siteLocale, {
   timeZone: siteTimeZone,
   timeZoneName: "short",
 });
+const siteNumber = new Intl.NumberFormat(siteLocale, { maximumFractionDigits: 0 });
 
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -131,9 +134,29 @@ function isLatencyPoint(point) {
     isRecord(point) &&
     isTimestamp(point.observedAt) &&
     isFiniteNonNegative(point.avgMs) &&
+    point.avgMs <= MAX_LATENCY_MS &&
     Number.isSafeInteger(point.sampleCount) &&
-    point.sampleCount >= 1
+    point.sampleCount >= 1 &&
+    point.sampleCount <= MAX_SAMPLES_PER_POINT
   );
+}
+
+function isLatencySeries(points, generatedAt, latestObservedAt) {
+  if (points.length > 120) return false;
+  let sampleCount = 0;
+  const valid = points.every((point, index) => {
+    if (
+      !isLatencyPoint(point) ||
+      Date.parse(point.observedAt) > generatedAt ||
+      Date.parse(point.observedAt) > latestObservedAt
+    )
+      return false;
+    sampleCount += point.sampleCount;
+    if (!Number.isSafeInteger(sampleCount)) return false;
+    if (index === 0) return true;
+    return Date.parse(point.observedAt) > Date.parse(points[index - 1].observedAt);
+  });
+  return valid;
 }
 
 function isSnapshot(value) {
@@ -169,6 +192,8 @@ function isSnapshot(value) {
       /^[a-z0-9-]+$/.test(component.slug) &&
       typeof component.name === "string" &&
       states.has(component.state) &&
+      isTimestamp(component.latestObservedAt) &&
+      Date.parse(component.latestObservedAt) <= Date.parse(value.generatedAt) &&
       (component.responseTimeMs === null || isFiniteNonNegative(component.responseTimeMs)) &&
       Array.isArray(component.history) &&
       component.history.length === 90 &&
@@ -183,7 +208,11 @@ function isSnapshot(value) {
       (component.latency === null ||
         (Array.isArray(component.latency) &&
           component.latency.length >= 1 &&
-          component.latency.every(isLatencyPoint))),
+          isLatencySeries(
+            component.latency,
+            Date.parse(value.generatedAt),
+            Date.parse(component.latestObservedAt),
+          ))),
   );
 }
 
@@ -207,7 +236,13 @@ function canApplySnapshot(snapshot) {
       "[data-latency-now]",
       "[data-latency-average]",
       "[data-latency-count]",
-      "[data-chart-average]",
+      "[data-chart-segments]",
+      "[data-chart-samples]",
+      "[data-chart-cursor]",
+      "[data-chart-cursor-point]",
+      "[data-latency-interaction]",
+      "[data-latency-tooltip]",
+      "[data-latency-announcement]",
       "[data-chart-max]",
       "[data-chart-min]",
       "[data-chart-start]",
@@ -310,43 +345,96 @@ function updateComponents(components) {
   }
 }
 
-function chartData(latency) {
-  const values = latency.map((point) => point.avgMs);
+function chartData(latency, latestObservedAt) {
+  const minuteMs = 60_000;
+  const end = Date.parse(latestObservedAt);
+  const endBucket = Math.floor(end / minuteMs) * minuteMs;
+  const windowStart = endBucket - 59 * minuteMs;
+  const recent = latency.filter((item) => {
+    const observedAt = Date.parse(item.observedAt);
+    return observedAt >= windowStart && observedAt <= end;
+  });
+  if (recent.length === 0) return null;
+  const values = recent.map((point) => point.avgMs);
   const min = Math.floor(Math.min(...values) / 25) * 25;
   const roundedMax = Math.ceil(Math.max(...values) / 25) * 25;
   const max = Math.max(roundedMax, min + 25);
   const span = max - min;
-  const latestAt = Date.parse(latency.at(-1).observedAt);
-  const windowStart = latestAt - 59 * 60_000;
   const point = (value, observedAt) => {
-    const elapsed = Math.max(0, Math.min(59 * 60_000, Date.parse(observedAt) - windowStart));
-    const x = 18 + (elapsed / (59 * 60_000)) * 564;
+    const elapsed = Math.max(0, Math.min(59 * minuteMs, Date.parse(observedAt) - windowStart));
+    const x = 18 + (elapsed / (59 * minuteMs)) * 564;
     const y = 142 - ((value - min) / span) * 118;
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
+    return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) };
   };
+  const points = recent.map((item) => ({
+    ...item,
+    ...point(item.avgMs, item.observedAt),
+  }));
+  const segments = points.reduce((result, item, index) => {
+    const previous = points[index - 1];
+    if (!previous || Date.parse(item.observedAt) - Date.parse(previous.observedAt) > minuteMs * 1.5)
+      result.push([item]);
+    else result.at(-1).push(item);
+    return result;
+  }, []);
+  const checks = recent.reduce((sum, item) => sum + item.sampleCount, 0);
   return {
     min,
     max,
     windowStart,
-    average: Math.round(latency.reduce((sum, item) => sum + item.avgMs, 0) / latency.length),
-    samples: latency.map((item) => point(item.avgMs, item.observedAt)).join(" "),
+    average: Math.round(
+      recent.reduce((sum, item) => sum + item.avgMs * item.sampleCount, 0) / checks,
+    ),
+    checks,
+    points,
+    segments,
   };
+}
+
+function renderChartGeometry(card, data) {
+  const namespace = "http://www.w3.org/2000/svg";
+  const segmentGroup = card.querySelector("[data-chart-segments]");
+  const sampleGroup = card.querySelector("[data-chart-samples]");
+  const segments = data.segments.map((segment) => {
+    const polyline = document.createElementNS(namespace, "polyline");
+    polyline.setAttribute("class", "chart-average");
+    polyline.setAttribute("data-chart-segment", "");
+    polyline.setAttribute("points", segment.map((item) => `${item.x},${item.y}`).join(" "));
+    return polyline;
+  });
+  const samples = data.points.map((point) => {
+    const circle = document.createElementNS(namespace, "circle");
+    circle.setAttribute("class", "chart-sample");
+    circle.setAttribute("cx", String(point.x));
+    circle.setAttribute("cy", String(point.y));
+    circle.setAttribute("r", "1.7");
+    return circle;
+  });
+  segmentGroup.replaceChildren(...segments);
+  sampleGroup.replaceChildren(...samples);
 }
 
 function updateLatency(components) {
   for (const component of components) {
-    if (!Array.isArray(component.latency) || component.latency.length < 2) continue;
+    if (!Array.isArray(component.latency) || component.latency.length < 1) continue;
     const card = document.querySelector(`[data-latency-slug="${component.slug}"]`);
     if (!card) continue;
     const latency = component.latency;
-    const latest = latency.at(-1);
-    const data = chartData(latency);
+    const data = chartData(latency, component.latestObservedAt);
+    if (!data) {
+      card.hidden = true;
+      window.latencyCharts?.update(card, []);
+      continue;
+    }
+    card.hidden = false;
+    const latest = data.points.at(-1);
     card.querySelector("[data-latency-checked]").textContent =
-      `Checked ${siteTime.format(new Date(latest.observedAt))}`;
-    card.querySelector("[data-latency-now]").textContent = `${Math.round(latest.avgMs)} ms`;
-    card.querySelector("[data-latency-average]").textContent = `${data.average} ms`;
-    card.querySelector("[data-latency-count]").textContent = String(latency.length);
-    card.querySelector("[data-chart-average]").setAttribute("points", data.samples);
+      `Checked ${siteTime.format(new Date(component.latestObservedAt))}`;
+    card.querySelector("[data-latency-now]").textContent = `${siteNumber.format(latest.avgMs)} ms`;
+    card.querySelector("[data-latency-average]").textContent =
+      `${siteNumber.format(data.average)} ms`;
+    card.querySelector("[data-latency-count]").textContent = siteNumber.format(data.checks);
+    renderChartGeometry(card, data);
     card.querySelector("[data-chart-max]").textContent = `${data.max} ms`;
     card.querySelector("[data-chart-min]").textContent = `${data.min} ms`;
     card.querySelector("[data-chart-start]").textContent = siteTime.format(
@@ -355,8 +443,9 @@ function updateLatency(components) {
     const chart = card.querySelector("svg");
     chart.setAttribute(
       "aria-label",
-      `${component.name} response time across ${latency.length} published checks in the latest 60-minute window. Latest ${Math.round(latest.avgMs)} milliseconds and average ${data.average} milliseconds. Missing minutes remain gaps. Scale ${data.min} to ${data.max} milliseconds.`,
+      `${component.name} response time across ${data.checks} published checks in the latest 60-minute window. Latest sample ${Math.round(latest.avgMs)} milliseconds and weighted average ${data.average} milliseconds. Missing minutes remain gaps. Scale ${data.min} to ${data.max} milliseconds.`,
     );
+    window.latencyCharts?.update(card, data.points);
   }
 }
 

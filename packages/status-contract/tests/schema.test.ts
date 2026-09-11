@@ -13,6 +13,31 @@ describe("status snapshot contract", () => {
     expect(
       snapshot.components.find((component) => component.slug === "public-api")?.latency,
     ).toHaveLength(60);
+    expect(
+      Date.parse(snapshot.components[0].latency?.at(-1)?.observedAt ?? snapshot.generatedAt),
+    ).toBeLessThanOrEqual(Date.parse(snapshot.components[0].latestObservedAt));
+  });
+
+  test("rejects latency observations newer than the component observation", () => {
+    const snapshot = createStatusFixture({ generatedAt: "2026-09-07T10:00:00.000Z" });
+    snapshot.components[0].latestObservedAt = new Date(
+      Date.parse(snapshot.components[0].latency?.at(-1)?.observedAt ?? snapshot.generatedAt) - 1,
+    ).toISOString();
+
+    expect(validateStatusSnapshot(snapshot)).toBe(false);
+  });
+
+  test("rejects latency values too large for precise graph summaries", () => {
+    const excessiveLatency = createStatusFixture({ generatedAt: "2026-09-07T10:00:00.000Z" });
+    const excessiveSamples = createStatusFixture({ generatedAt: "2026-09-07T10:00:00.000Z" });
+    if (!excessiveLatency.components[0].latency || !excessiveSamples.components[0].latency) {
+      throw new Error("Expected latency fixtures");
+    }
+    excessiveLatency.components[0].latency[0].avgMs = 3_600_001;
+    excessiveSamples.components[0].latency[0].sampleCount = 10_001;
+
+    expect(validateStatusSnapshot(excessiveLatency)).toBe(false);
+    expect(validateStatusSnapshot(excessiveSamples)).toBe(false);
   });
 
   test("rejects unknown fields to prevent accidental source leakage", () => {

@@ -77,8 +77,8 @@ export const DailyStatusSchema = Type.Object(
 export const LatencyPointSchema = Type.Object(
   {
     observedAt: Type.String({ format: "date-time" }),
-    avgMs: Type.Number({ minimum: 0 }),
-    sampleCount: Type.Integer({ minimum: 1 }),
+    avgMs: Type.Number({ minimum: 0, maximum: 3_600_000 }),
+    sampleCount: Type.Integer({ minimum: 1, maximum: 10_000 }),
   },
   { additionalProperties: false },
 );
@@ -245,7 +245,8 @@ export function validateStatusSnapshot(input: unknown): input is StatusSnapshot 
       isStrictlyChronological(historyDates, 86_400_000) &&
       (component.latency === null ||
         (isStrictlyChronological(latencyTimes) &&
-          Date.parse(latencyTimes.at(-1) ?? input.generatedAt) <= generatedAt))
+          Date.parse(latencyTimes.at(-1) ?? input.generatedAt) <=
+            Date.parse(component.latestObservedAt)))
     );
   });
   if (!componentsAreValid) return false;

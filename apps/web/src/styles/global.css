@@ -668,9 +668,23 @@ dd,
   font-size: 12px;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 .chart-wrap {
   position: relative;
   margin-top: 26px;
+  min-height: 120px;
 }
 
 .chart-wrap svg {
@@ -693,6 +707,77 @@ dd,
   vector-effect: non-scaling-stroke;
 }
 
+.chart-sample {
+  fill: var(--accent);
+  opacity: 0.45;
+}
+
+.chart-cursor {
+  stroke: var(--ink-soft);
+  stroke-dasharray: 3 4;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-cursor-point {
+  fill: var(--surface-raised);
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.chart-interaction {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius) / 2);
+  background: transparent;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.chart-interaction:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+.latency-tooltip {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  display: grid;
+  min-width: 128px;
+  padding: 9px 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ink) 12%, transparent);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.latency-tooltip[hidden] {
+  display: none;
+}
+
+.latency-tooltip time,
+.latency-tooltip span {
+  color: var(--ink-soft);
+}
+
+.latency-tooltip strong {
+  margin-block: 2px;
+  font-size: 13px;
+}
+
 .chart-average {
   stroke: var(--accent);
   stroke-width: 2.5;
@@ -707,7 +792,7 @@ dd,
   height: calc(100% - 10px);
   color: var(--ink-soft);
   font-family: var(--mono);
-  font-size: 8px;
+  font-size: 11px;
   pointer-events: none;
 }
 
@@ -717,7 +802,7 @@ dd,
   justify-content: space-between;
   color: var(--ink-soft);
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }

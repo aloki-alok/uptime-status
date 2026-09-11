@@ -7,28 +7,61 @@ type Props = {
 };
 
 const { components, site } = Astro.props;
+const MINUTE_MS = 60_000;
+const GAP_THRESHOLD_MS = MINUTE_MS * 1.5;
+
+function windowLatency(
+  latency: NonNullable<StatusSnapshot["components"][number]["latency"]>,
+  latestObservedAt: string,
+) {
+  const end = Date.parse(latestObservedAt);
+  const windowStart = Math.floor(end / MINUTE_MS) * MINUTE_MS - 59 * MINUTE_MS;
+  return latency.filter((item) => {
+    const observedAt = Date.parse(item.observedAt);
+    return observedAt >= windowStart && observedAt <= end;
+  });
+}
+
 const measured = components.filter((component) => component.latency !== null);
 
-function chartData(latency: NonNullable<(typeof measured)[number]["latency"]>) {
-  const values = latency.map((point) => point.avgMs);
+function chartData(
+  latency: NonNullable<(typeof measured)[number]["latency"]>,
+  latestObservedAt: string,
+) {
+  const recent = windowLatency(latency, latestObservedAt);
+  if (recent.length === 0) return null;
+  const values = recent.map((point) => point.avgMs);
   const min = Math.floor(Math.min(...values) / 25) * 25;
   const roundedMax = Math.ceil(Math.max(...values) / 25) * 25;
   const max = Math.max(roundedMax, min + 25);
   const span = max - min;
-  const latestAt = Date.parse(latency.at(-1)?.observedAt ?? "");
-  const windowStart = latestAt - 59 * 60_000;
+  const endBucket = Math.floor(Date.parse(latestObservedAt) / MINUTE_MS) * MINUTE_MS;
+  const windowStart = endBucket - 59 * MINUTE_MS;
   const point = (value: number, observedAt: string) => {
     const elapsed = Math.max(0, Math.min(59 * 60_000, Date.parse(observedAt) - windowStart));
     const x = 18 + (elapsed / (59 * 60_000)) * 564;
     const y = 142 - ((value - min) / span) * 118;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   };
-  const samples = latency.map((item) => point(item.avgMs, item.observedAt)).join(" ");
+  const points = recent.map((item) => {
+    const [x, y] = point(item.avgMs, item.observedAt).split(",").map(Number);
+    return { ...item, x, y };
+  });
+  const segments = points.reduce<(typeof points)[]>((result, item, index) => {
+    const previous = points[index - 1];
+    if (!previous || Date.parse(item.observedAt) - Date.parse(previous.observedAt) > GAP_THRESHOLD_MS) {
+      result.push([item]);
+    } else {
+      result.at(-1)?.push(item);
+    }
+    return result;
+  }, []);
+  const checks = recent.reduce((sum, item) => sum + item.sampleCount, 0);
   const average = Math.round(
-    latency.reduce((sum, item) => sum + item.avgMs, 0) / latency.length,
+    recent.reduce((sum, item) => sum + item.avgMs * item.sampleCount, 0) / checks,
   );
 
-  return { average, max, min, samples, windowStart };
+  return { average, checks, max, min, points, segments, windowStart };
 }
 
 const time = new Intl.DateTimeFormat(site.locale, {
@@ -37,6 +70,7 @@ const time = new Intl.DateTimeFormat(site.locale, {
   timeZone: site.timeZone,
   timeZoneName: "short",
 });
+const number = new Intl.NumberFormat(site.locale, { maximumFractionDigits: 0 });
 ---
 
 {measured.length > 0 && (
@@ -52,37 +86,72 @@ const time = new Intl.DateTimeFormat(site.locale, {
       {measured.map((component) => {
         const latency = component.latency;
         if (!latency) return null;
-        const data = chartData(latency);
-        const current = Math.round(latency.at(-1)?.avgMs ?? 0);
-        const lastObservedAt = latency.at(-1)?.observedAt;
+        const chart = chartData(latency, component.latestObservedAt);
+        const data = chart ?? {
+          average: 0,
+          checks: 0,
+          max: 25,
+          min: 0,
+          points: [],
+          segments: [],
+          windowStart:
+            Math.floor(Date.parse(component.latestObservedAt) / MINUTE_MS) * MINUTE_MS -
+            59 * MINUTE_MS,
+        };
+        const current = Math.round(data.points.at(-1)?.avgMs ?? 0);
+        const lastObservedAt = data.points.at(-1)?.observedAt;
+        const tooltipId = `latency-tooltip-${component.slug}`;
         return (
-          <figure class="latency-card" data-latency-slug={component.slug}>
+          <figure class="latency-card" data-latency-slug={component.slug} hidden={chart === null}>
             <figcaption>
               <div>
                 <h3>{component.name}</h3>
-                <span class="state-label" data-latency-checked>Checked {lastObservedAt ? time.format(new Date(lastObservedAt)) : "unknown"}</span>
+                <span class="state-label" data-latency-checked>Checked {time.format(new Date(component.latestObservedAt))}</span>
               </div>
               <dl>
-                <div><dt>Latest</dt><dd data-latency-now>{current} ms</dd></div>
-                <div><dt>Average</dt><dd data-latency-average>{data.average} ms</dd></div>
-                <div><dt>Checks</dt><dd data-latency-count>{latency.length}</dd></div>
+                <div><dt>Latest sample</dt><dd data-latency-now>{number.format(current)} ms</dd></div>
+                <div><dt>Average</dt><dd data-latency-average>{number.format(data.average)} ms</dd></div>
+                <div><dt>Checks</dt><dd data-latency-count>{number.format(data.checks)}</dd></div>
               </dl>
             </figcaption>
             <div class="chart-wrap">
               <svg
                 viewBox="0 0 600 160"
                 role="img"
-                aria-label={`${component.name} response time across ${latency.length} published checks in the latest 60-minute window. Latest ${current} milliseconds and average ${data.average} milliseconds. Missing minutes remain gaps. Scale ${data.min} to ${data.max} milliseconds.`}
+                aria-label={`${component.name} response time across ${data.checks} published checks in the latest 60-minute window. Latest sample ${current} milliseconds and weighted average ${data.average} milliseconds. Missing minutes remain gaps. Scale ${data.min} to ${data.max} milliseconds.`}
               >
                 <line x1="18" y1="24" x2="582" y2="24" class="chart-grid" />
                 <line x1="18" y1="83" x2="582" y2="83" class="chart-grid" />
                 <line x1="18" y1="142" x2="582" y2="142" class="chart-grid" />
-                <polyline points={data.samples} class="chart-average" data-chart-average />
+                <g data-chart-segments>
+                  {data.segments.map((segment) => (
+                    <polyline points={segment.map((item) => `${item.x},${item.y}`).join(" ")} class="chart-average" data-chart-segment />
+                  ))}
+                </g>
+                <g data-chart-samples>
+                  {data.points.map((item) => <circle cx={item.x} cy={item.y} r="1.7" class="chart-sample" />)}
+                </g>
+                <line x1="0" y1="24" x2="0" y2="142" class="chart-cursor" data-chart-cursor visibility="hidden" />
+                <circle cx="0" cy="0" r="4" class="chart-cursor-point" data-chart-cursor-point visibility="hidden" />
               </svg>
               <div class="chart-scale" aria-hidden="true">
                 <span data-chart-max>{data.max} ms</span>
                 <span data-chart-min>{data.min} ms</span>
               </div>
+              <button
+                type="button"
+                class="chart-interaction"
+                aria-label={`Inspect ${component.name} response-time observations. Use left and right arrow keys to move between checks.`}
+                aria-describedby={tooltipId}
+                data-latency-interaction
+                data-chart-points={JSON.stringify(data.points)}
+              ></button>
+              <div class="latency-tooltip" id={tooltipId} role="tooltip" data-latency-tooltip hidden>
+                <time data-latency-tooltip-time datetime={lastObservedAt}></time>
+                <strong data-latency-tooltip-value></strong>
+                <span data-latency-tooltip-samples></span>
+              </div>
+              <span class="visually-hidden" aria-live="polite" data-latency-announcement></span>
             </div>
             <div class="chart-axis" aria-hidden="true">
               <span data-chart-start>{time.format(new Date(data.windowStart))}</span>

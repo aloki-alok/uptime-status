@@ -32,5 +32,6 @@ const { variant, showReviewRail = false, snapshot = buildSnapshot, liveUpdates =
   <div class="uptime-tooltip" id="uptime-day-tooltip" role="tooltip" hidden></div>
   <SubscribeDialog {site} />
   <script is:inline src="/scripts/uptime-history.js"></script>
+  <script is:inline src="/scripts/latency-chart.js"></script>
   {liveUpdates && <script is:inline src="/scripts/live-status.js"></script>}
 </BaseLayout>

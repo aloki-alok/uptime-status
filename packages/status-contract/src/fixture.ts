@@ -124,7 +124,9 @@ export function createStatusFixture(options: FixtureOptions = {}): StatusSnapsho
     state: "operational" as const,
     latestObservedAt: latestCheckAt,
     responseTimeMs: 121 + index * 13,
-    latency: component.showLatency ? createLatency(endDate, 118 + index * 12, index + 1) : null,
+    latency: component.showLatency
+      ? createLatency(new Date(latestCheckAt), 118 + index * 12, index + 1)
+      : null,
     history: createHistory(endDate, index + 1),
   }));
 
