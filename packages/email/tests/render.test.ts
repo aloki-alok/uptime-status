@@ -59,6 +59,7 @@ describe("status mail renderer", () => {
       recipient: "person@example.com",
       publicBaseUrl: "https://status.example.com/",
       unsubscribeToken: "unsubscribe-token",
+      deliveryId: "delivery-person-001",
       event: {
         kind: "incident",
         eventId: "incident-001",
@@ -70,7 +71,31 @@ describe("status mail renderer", () => {
     expect(mail.text).toStartWith(":( Incident update");
     expect(mail.headers["List-Unsubscribe"]).toContain("unsubscribe-token");
     expect(mail.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
-    expect(mail.messageId).toBe("example-service:incident-001:incident");
+    expect(mail.messageId).toBe("example-service:delivery-person-001");
+  });
+
+  test("uses a recipient-specific provider idempotency key for fanout", () => {
+    const render = (recipient: string, deliveryId: string) =>
+      renderStatusMail({
+        site,
+        recipient,
+        publicBaseUrl: "https://status.example.com/",
+        unsubscribeToken: "unsubscribe-token",
+        deliveryId,
+        event: {
+          kind: "incident",
+          eventId: "incident-001",
+          title: "API latency",
+          message: "Requests are slower than usual.",
+          publishedAt: "2026-09-08T10:00:00Z",
+        },
+      });
+
+    const first = render("first@example.com", "delivery-first");
+    const second = render("second@example.com", "delivery-second");
+    expect(first.messageId).not.toBe(second.messageId);
+    expect(first.headers["X-Status-Event"]).toBe("incident-001");
+    expect(second.headers["X-Status-Event"]).toBe("incident-001");
   });
 
   test("escapes site-controlled copy and refuses unsafe origins", () => {
@@ -79,6 +104,7 @@ describe("status mail renderer", () => {
       recipient: "person@example.com",
       publicBaseUrl: "https://status.example.com",
       unsubscribeToken: "unsubscribe-token",
+      deliveryId: "delivery-resolved-001",
       event: {
         kind: "resolved",
         eventId: "resolved-001",
@@ -163,6 +189,7 @@ describe("status mail renderer", () => {
         recipient: "person@example.com",
         publicBaseUrl: "https://status.example.com",
         unsubscribeToken: "unsubscribe-token",
+        deliveryId: "delivery-maintenance-001",
         event: {
           kind: "incident",
           eventId: "incident-001\nBcc: bad@example.com",
@@ -197,6 +224,7 @@ describe("status mail renderer", () => {
         recipient: "person@example.com",
         publicBaseUrl: "https://status.example.com",
         unsubscribeToken: "unsubscribe-token",
+        deliveryId: "delivery-maintenance-001",
         event: {
           kind: "maintenance",
           eventId: "maintenance-001",
@@ -208,5 +236,23 @@ describe("status mail renderer", () => {
         },
       }),
     ).toThrow("after its start");
+  });
+
+  test("requires a delivery identity for customer updates", () => {
+    expect(() =>
+      renderStatusMail({
+        site,
+        recipient: "person@example.com",
+        publicBaseUrl: "https://status.example.com",
+        unsubscribeToken: "unsubscribe-token",
+        event: {
+          kind: "incident",
+          eventId: "incident-001",
+          title: "API latency",
+          message: "Requests are slower than usual.",
+          publishedAt: "2026-09-08T10:00:00Z",
+        },
+      }),
+    ).toThrow("requires a delivery ID");
   });
 });

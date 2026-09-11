@@ -6,6 +6,43 @@ export {
   historyImportId,
   validateHistoryImportBundle,
 } from "./history-import";
+export type {
+  HistoryImportApplyReceipt,
+  HistoryImportApplyReceiptContent,
+  HistoryImportPlan,
+  HistoryImportPlanContent,
+  HistoryImportRollbackReceipt,
+  HistoryImportRollbackReceiptContent,
+  HistoryImportVerifyReceipt,
+  HistoryImportVerifyReceiptContent,
+} from "./history-import-operations";
+export {
+  createHistoryImportApplyReceipt,
+  createHistoryImportPlan,
+  createHistoryImportRollbackReceipt,
+  createHistoryImportVerifyReceipt,
+  HistoryImportApplyReceiptSchema,
+  HistoryImportPlanSchema,
+  HistoryImportRollbackReceiptSchema,
+  HistoryImportVerifyReceiptSchema,
+  historyImportPlanId,
+  validateHistoryImportApplyReceipt,
+  validateHistoryImportPlan,
+  validateHistoryImportRollbackReceipt,
+  validateHistoryImportVerifyReceipt,
+} from "./history-import-operations";
+export type {
+  NotificationEvent,
+  NotificationEventContent,
+  NotificationEventType,
+} from "./notification";
+export {
+  createNotificationEvent,
+  NotificationEventSchema,
+  NotificationEventTypeSchema,
+  notificationEventId,
+  validateNotificationEvent,
+} from "./notification";
 export type { Incident, StatusSnapshot, StatusState } from "./schema";
 export { StatusSnapshotSchema, validateStatusSnapshot } from "./schema";
 export type { SiteConfig, SiteConfigIssue } from "./site";

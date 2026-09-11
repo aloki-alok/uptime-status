@@ -7,6 +7,7 @@
     ".": "./src/index.ts",
     "./site": "./src/site.ts",
     "./snapshot": "./src/snapshot.ts",
+    "./notification": "./src/notification.ts",
     "./subscription": "./src/subscription.ts",
     "./uptime-kuma-export": "./src/uptime-kuma-export.ts"
   },

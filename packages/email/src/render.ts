@@ -56,6 +56,7 @@ export type RenderMailInput = {
   publicBaseUrl: string;
   event: MailEvent;
   unsubscribeToken?: string;
+  deliveryId?: string;
 };
 
 function escapeHtml(value: string) {
@@ -161,6 +162,7 @@ export function renderStatusMail(input: RenderMailInput): RenderedMail {
   const baseUrl = safeBaseUrl(input.publicBaseUrl);
   const recipient = normalizedAddress(input.recipient, "Recipient");
   const eventId = eventIdentifier(input.event.eventId);
+  let deliveryId: string | null = null;
   if (input.event.kind === "confirmation") {
     isoTimestamp(input.event.expiresAt, "Confirmation expiry");
   } else {
@@ -168,6 +170,10 @@ export function renderStatusMail(input: RenderMailInput): RenderedMail {
     if (!input.unsubscribeToken) {
       throw new Error("Customer update mail requires an unsubscribe token");
     }
+    if (!input.deliveryId) {
+      throw new Error("Customer update mail requires a delivery ID");
+    }
+    deliveryId = eventIdentifier(input.deliveryId);
   }
   if (input.event.kind === "maintenance") {
     const startsAt = isoTimestamp(input.event.startsAt, "Maintenance start");
@@ -228,7 +234,10 @@ export function renderStatusMail(input: RenderMailInput): RenderedMail {
   }
 
   return {
-    messageId: `${input.site.siteId}:${eventId}:${input.event.kind}`,
+    messageId:
+      input.event.kind === "confirmation"
+        ? `${input.site.siteId}:${eventId}:${input.event.kind}`
+        : `${input.site.siteId}:${deliveryId}`,
     category: input.event.kind,
     from: {
       name: safeHeaderValue(selectedDelivery.senderName ?? input.site.displayName, "Sender name"),
