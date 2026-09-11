@@ -67,12 +67,10 @@ function sqlitePort(database: Database): DatabasePort {
 async function fixture() {
   const database = new Database(":memory:");
   database.exec("PRAGMA foreign_keys = ON");
-  database.exec(
-    readFileSync(
-      resolve(import.meta.dir, "../../migrations/0001_subscription_storage.sql"),
-      "utf8",
-    ),
-  );
+  // Suppression joins notification deliveries, so the fixture needs every migration D1 has.
+  for (const migration of ["0001_subscription_storage.sql", "0002_notification_fanout.sql"]) {
+    database.exec(readFileSync(resolve(import.meta.dir, `../../migrations/${migration}`), "utf8"));
+  }
   const key = await importOutboxEncryptionKey(new Uint8Array(32).fill(9));
   const repository = new D1SubscriptionRepository(
     sqlitePort(database),

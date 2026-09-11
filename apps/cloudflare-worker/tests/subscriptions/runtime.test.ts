@@ -67,12 +67,10 @@ function base64url(bytes: Uint8Array) {
 async function fixture() {
   const database = new Database(":memory:");
   database.exec("PRAGMA foreign_keys = ON");
-  database.exec(
-    readFileSync(
-      resolve(import.meta.dir, "../../migrations/0001_subscription_storage.sql"),
-      "utf8",
-    ),
-  );
+  // Suppression joins notification deliveries, so the fixture needs every migration D1 has.
+  for (const migration of ["0001_subscription_storage.sql", "0002_notification_fanout.sql"]) {
+    database.exec(readFileSync(resolve(import.meta.dir, `../../migrations/${migration}`), "utf8"));
+  }
   const site = JSON.parse(
     readFileSync(
       resolve(import.meta.dir, "../../../../packages/cli/templates/status.config.json"),

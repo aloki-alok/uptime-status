@@ -570,14 +570,26 @@ export class D1SubscriptionRepository implements SubscriptionRepository {
             suppressed_at = ?1, suppression_reason = ?2, updated_at = ?3,
             commit_id = ?4
           WHERE status <> 'suppressed' AND EXISTS (
-            SELECT 1 FROM confirmation_outbox
-            JOIN delivery_webhook_events
-              ON delivery_webhook_events.provider_message_id = confirmation_outbox.provider_message_id
-            WHERE confirmation_outbox.site_id = subscribers.site_id
-              AND confirmation_outbox.email_key = subscribers.email_key
-              AND delivery_webhook_events.provider = 'resend'
+            SELECT 1 FROM delivery_webhook_events
+            WHERE delivery_webhook_events.provider = 'resend'
               AND delivery_webhook_events.event_id = ?5
               AND delivery_webhook_events.commit_id = ?4
+              AND (
+                EXISTS (
+                  SELECT 1 FROM confirmation_outbox
+                  WHERE confirmation_outbox.provider_message_id =
+                    delivery_webhook_events.provider_message_id
+                    AND confirmation_outbox.site_id = subscribers.site_id
+                    AND confirmation_outbox.email_key = subscribers.email_key
+                )
+                OR EXISTS (
+                  SELECT 1 FROM notification_deliveries
+                  WHERE notification_deliveries.provider_message_id =
+                    delivery_webhook_events.provider_message_id
+                    AND notification_deliveries.site_id = subscribers.site_id
+                    AND notification_deliveries.email_key = subscribers.email_key
+                )
+              )
           )`,
         )
         .bind(input.occurredAt, reason, input.receivedAt, commitId, input.eventId),
