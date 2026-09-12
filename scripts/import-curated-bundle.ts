@@ -58,7 +58,7 @@ async function main() {
   const databasePath = option("--database");
   if (!existsSync(databasePath)) throw new Error("Destination database does not exist");
   const apply = process.argv.includes("--apply");
-  const db = new Database(databasePath, { readonly: !apply });
+  const db = apply ? new Database(databasePath) : new Database(databasePath, { readonly: true });
   try {
     const events = [
       ...bundle.incidents.map((event) => ({ kind: "incident" as const, event })),
