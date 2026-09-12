@@ -51,7 +51,12 @@ function errorMessage(err: unknown) {
 async function main() {
   const operatorFlag = process.argv.indexOf("--operator");
   if (operatorFlag !== -1) {
-    process.exitCode = await runOperator(process.argv.slice(operatorFlag + 1));
+    try {
+      process.exitCode = await runOperator(process.argv.slice(operatorFlag + 1));
+    } catch (error) {
+      console.error(errorMessage(error));
+      process.exitCode = 1;
+    }
     return;
   }
   const siteConfigPath = requireEnv("STATUS_SITE_CONFIG");
