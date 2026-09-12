@@ -98,12 +98,13 @@ export class SqliteHistoryDestination implements HistoryImportDestination {
     // every existing day (native or from a prior import) is a collision candidate regardless
     // of which upstream source produced it.
     const rows = this.db
-      .query("SELECT component_id, date FROM daily ORDER BY component_id ASC, date ASC")
-      .all() as { component_id: string; date: string }[];
+      .query("SELECT component_id, date, import_id FROM daily ORDER BY component_id ASC, date ASC")
+      .all() as { component_id: string; date: string; import_id: string | null }[];
     return rows.map((row) => ({
       componentId: row.component_id,
       kind: "daily" as const,
       observedAt: row.date,
+      ...(row.import_id ? { importId: row.import_id } : {}),
     }));
   }
 

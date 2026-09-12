@@ -10,6 +10,9 @@ export type ExistingHistoryRecord = {
   componentId: string;
   kind: "daily" | "latency";
   observedAt: string;
+  /** Which import wrote this row, when one did. A destination reports it so preview can tell
+   *  an import's own rows apart from a genuine collision with someone else's. */
+  importId?: string;
 };
 
 export type HistoryImportPreviewInput = {
@@ -70,7 +73,12 @@ export function previewHistoryImport(input: HistoryImportPreviewInput): HistoryI
   if (!SHA256.test(input.bundleSha256)) {
     throw new Error("The bundle SHA-256 is invalid");
   }
-  const existing = assertExistingRecords(input.bundle, input.existing ?? []);
+  // Re-previewing an applied import must not find it colliding with itself: an operator runs
+  // preview again for every verify and rollback, and its own rows are not a conflict.
+  const foreign = (input.existing ?? []).filter(
+    (record) => record.importId !== input.bundle.importId,
+  );
+  const existing = assertExistingRecords(input.bundle, foreign);
   const components = [...input.bundle.components]
     .sort((first, second) => first.componentId.localeCompare(second.componentId))
     .map((component) => {

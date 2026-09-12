@@ -80,7 +80,12 @@ describe("local JSON history destination", () => {
     expect(first.noOp).toBe(false);
     expect(repeated.noOp).toBe(true);
     expect(await context.destination.listExisting("site-a", "primary")).toEqual([
-      { componentId: "api", kind: "daily", observedAt: "2026-09-09" },
+      {
+        componentId: "api",
+        kind: "daily",
+        observedAt: "2026-09-09",
+        importId: context.bundle.importId,
+      },
     ]);
     expect(
       JSON.parse(await readFile(join(context.directory, "history-store.json"), "utf8")),

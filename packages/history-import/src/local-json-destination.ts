@@ -153,7 +153,12 @@ export class LocalJsonHistoryDestination implements HistoryImportDestination {
     const state = await this.read();
     return state.records
       .filter((record) => record.active && record.siteId === siteId && record.sourceId === sourceId)
-      .map(({ componentId, kind, observedAt }) => ({ componentId, kind, observedAt }))
+      .map(({ componentId, kind, observedAt, importId }) => ({
+        componentId,
+        kind,
+        observedAt,
+        importId,
+      }))
       .sort(
         (left, right) =>
           left.componentId.localeCompare(right.componentId) ||
