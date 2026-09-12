@@ -31,6 +31,15 @@
         "@uptime-status/snapshot": "workspace:*",
       },
     },
+    "apps/monitor": {
+      "name": "@uptime-status/monitor-app",
+      "version": "0.1.0",
+      "dependencies": {
+        "@uptime-status/domain": "workspace:*",
+        "@uptime-status/monitor": "workspace:*",
+        "@uptime-status/snapshot": "workspace:*",
+      },
+    },
     "apps/web": {
       "name": "@uptime-status/web",
       "version": "0.1.0",
@@ -511,6 +520,8 @@
     "@uptime-status/history-import": ["@uptime-status/history-import@workspace:packages/history-import"],
 
     "@uptime-status/monitor": ["@uptime-status/monitor@workspace:packages/monitor"],
+
+    "@uptime-status/monitor-app": ["@uptime-status/monitor-app@workspace:apps/monitor"],
 
     "@uptime-status/snapshot": ["@uptime-status/snapshot@workspace:packages/snapshot"],
 

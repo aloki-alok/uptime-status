@@ -7,7 +7,13 @@ import {
   resolveExplicitPath,
   validateSiteFile,
 } from "./commands";
-import { inspectHistory } from "./history";
+import {
+  applyHistoryImportCommand,
+  DEFAULT_HISTORY_PLATFORM_REVISION,
+  inspectHistory,
+  rollbackHistoryImportCommand,
+  verifyHistoryImportCommand,
+} from "./history";
 import { createProbeSnapshot } from "./snapshot";
 
 export const HELP = `Usage: uptime-status <command> [options]
@@ -24,7 +30,21 @@ Commands:
                   --cutoff <ISO time> --exported <ISO time>
                   --source-version <version> --out <path>
                                       Create a sanitized bundle from an offline Kuma backup
+  history apply --site <path> --bundle <path> --database <path>
+                [--platform-revision <revision>]
+                                      Apply a history bundle to the live monitor database
+  history verify --site <path> --bundle <path> --database <path>
+                [--platform-revision <revision>]
+                                      Confirm an applied import matches the bundle exactly
+  history rollback --site <path> --bundle <path> --database <path>
+                [--platform-revision <revision>] [--yes]
+                                      Delete an applied import's rows; without --yes, only
+                                      report what would be deleted
   help                                 Show this help
+
+--platform-revision defaults to "${DEFAULT_HISTORY_PLATFORM_REVISION}". apply, verify, and
+rollback rebuild the same plan from the bundle, so they must all be given the same value
+(the default, or the same explicit override) or the plan will not match.
 `;
 
 function option(args: string[], name: string) {
@@ -119,6 +139,74 @@ export async function run(args: string[]) {
     console.log(`Components: ${result.componentCount}`);
     console.log(`Daily rows: ${result.dayCount}`);
     console.log("No source credentials or private monitor fields were written to the bundle.");
+    return 0;
+  }
+
+  if (
+    command === "history" &&
+    (rest[0] === "apply" || rest[0] === "verify" || rest[0] === "rollback")
+  ) {
+    const subcommand = rest[0];
+    const historyArgs = rest.slice(1);
+    const yesIndex = subcommand === "rollback" ? historyArgs.indexOf("--yes") : -1;
+    const confirm = yesIndex !== -1;
+    const withoutYes = confirm
+      ? [...historyArgs.slice(0, yesIndex), ...historyArgs.slice(yesIndex + 1)]
+      : historyArgs;
+
+    const sitePath = requiredOption(withoutYes, "--site");
+    const bundlePath = requiredOption(withoutYes, "--bundle");
+    const databasePath = requiredOption(withoutYes, "--database");
+    const platformRevision = option(withoutYes, "--platform-revision");
+    const allowed = new Set(
+      [
+        "--site",
+        sitePath,
+        "--bundle",
+        bundlePath,
+        "--database",
+        databasePath,
+        ...(platformRevision !== undefined ? ["--platform-revision", platformRevision] : []),
+        ...(confirm ? ["--yes"] : []),
+      ].filter((value): value is string => value !== undefined),
+    );
+    const unknown = historyArgs.find((argument) => !allowed.has(argument));
+    if (unknown) throw new Error(`unknown history ${subcommand} argument: ${unknown}`);
+
+    const options = { sitePath, bundlePath, databasePath, platformRevision };
+
+    if (subcommand === "apply") {
+      const result = await applyHistoryImportCommand(options);
+      console.log(`Import ID: ${result.importId}`);
+      console.log(`Components: ${result.componentCount}`);
+      console.log(`Daily rows written: ${result.dailyRecordCount}`);
+      console.log(
+        result.noOp ? "No-op: this import was already applied." : "History import applied.",
+      );
+      return 0;
+    }
+
+    if (subcommand === "verify") {
+      const result = await verifyHistoryImportCommand(options);
+      console.log(`Import ID: ${result.importId}`);
+      console.log(`Daily rows confirmed: ${result.dailyRecordCount}`);
+      console.log("Verified: the applied history matches the reviewed plan and bundle.");
+      return 0;
+    }
+
+    const result = await rollbackHistoryImportCommand({ ...options, confirm });
+    console.log(`Import ID: ${result.importId}`);
+    if (!result.applied) {
+      console.log(`Daily rows that would be deleted: ${result.dailyRecordCount}`);
+      console.log(
+        result.noOp
+          ? "No-op: nothing is applied for this import."
+          : "Dry run: re-run with --yes to delete these rows.",
+      );
+      return 0;
+    }
+    console.log(`Daily rows deleted: ${result.dailyRecordCount}`);
+    console.log(result.noOp ? "No-op: nothing was applied for this import." : "Rolled back.");
     return 0;
   }
 
