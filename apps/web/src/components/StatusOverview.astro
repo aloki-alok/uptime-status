@@ -161,7 +161,7 @@ function dayDetails(day: StatusSnapshot["components"][number]["history"][number]
         <div class="incident-update">
           <span class="state-label">{snapshot.activeIncidents[0].state === "monitoring" ? "Under observation" : stateLabels[snapshot.activeIncidents[0].impact]}</span>
           <p>{snapshot.activeIncidents[0].updates.at(-1)?.message}</p>
-          <a href={`/incidents/${snapshot.activeIncidents[0].slug}/`}>View incident details</a>
+          <a href={`/incidents/?id=${snapshot.activeIncidents[0].slug}`}>View incident details</a>
         </div>
       </section>
     )}

@@ -99,8 +99,43 @@ test("maintenance and history routes expose operational detail", async ({ page }
   await expect(page.getByRole("heading", { level: 1, name: "Past incidents" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Elevated API latency" })).toHaveAttribute(
     "href",
-    "/incidents/elevated-api-latency/",
+    "/incidents/?id=elevated-api-latency",
   );
+});
+
+test("newly published notices appear without rebuilding the static site", async ({
+  page,
+  request,
+}) => {
+  const original = await request.get("/current.json");
+  const snapshot = await original.json();
+  const startedAt = snapshot.generatedAt;
+  const incident = {
+    slug: "new-api-incident",
+    revision: 1,
+    title: "New API incident",
+    state: "investigating",
+    impact: "degraded",
+    affectedComponents: [snapshot.components[0].slug],
+    startedAt,
+    updates: [
+      {
+        id: "new-update",
+        state: "investigating",
+        message: "We are checking slow requests.",
+        publishedAt: startedAt,
+      },
+    ],
+  };
+  snapshot.activeIncidents = [incident, ...snapshot.activeIncidents];
+  await page.route("**/current.json", (route) => route.fulfill({ json: snapshot }));
+
+  await page.goto("/history/");
+  const link = page.getByRole("link", { name: "New API incident" });
+  await expect(link).toHaveAttribute("href", "/incidents/?id=new-api-incident");
+  await link.click();
+  await expect(page.getByRole("heading", { level: 1, name: "New API incident" })).toBeVisible();
+  await expect(page.getByText("We are checking slow requests.")).toBeVisible();
 });
 
 test("incident detail route exposes the complete response log", async ({ page }) => {

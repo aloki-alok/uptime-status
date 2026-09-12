@@ -27,6 +27,7 @@ function durationMinutes(startsAt: string, endsAt: string) {
         <h1>Planned maintenance</h1>
         <p>See planned work, affected services, and timing.</p>
       </header>
+      <div data-maintenance-list data-time-zone={site.timeZone}>
       {snapshot.scheduledMaintenance.length === 0 ? (
         <p class="empty-state">No maintenance is currently planned.</p>
       ) : snapshot.scheduledMaintenance.map((maintenance, index) => (
@@ -53,8 +54,10 @@ function durationMinutes(startsAt: string, endsAt: string) {
           </div>
         </section>
       ))}
+      </div>
     </main>
   </div>
   <SubscribeDialog {site} />
   <script is:inline src="/scripts/local-times.js"></script>
+  <script is:inline src="/scripts/live-records.js"></script>
 </BaseLayout>

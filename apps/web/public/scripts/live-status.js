@@ -275,6 +275,12 @@ function deriveState(snapshot, responseTime) {
       result = incident.impact;
     }
   }
+  if (
+    result === "operational" &&
+    snapshot.scheduledMaintenance.some((item) => item.state === "active")
+  ) {
+    result = "maintenance";
+  }
   return result;
 }
 
@@ -482,7 +488,7 @@ function renderEvents(snapshot) {
       element("p", "", incident.updates?.at(-1)?.message ?? "An update is in progress."),
     );
     const link = element("a", "", "View incident details");
-    link.href = `/incidents/${incident.slug}/`;
+    link.href = `/incidents/?id=${incident.slug}`;
     update.append(link);
     section.append(heading, update);
     fragment.append(section);

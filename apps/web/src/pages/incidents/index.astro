@@ -1,0 +1,21 @@
+---
+import SiteHeader from "../../components/SiteHeader.astro";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { site } from "../../lib/build-data";
+---
+
+<BaseLayout title={`Incident details | ${site.displayName}`} description={`Published incident details for ${site.displayName}.`} locale={site.locale}>
+  <div class="page-shell">
+    <SiteHeader active="history" {site} />
+    <main id="main-content" class="incident-main" data-incident-detail data-time-zone={site.timeZone}>
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="/history/">Past incidents</a>
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">Incident</span>
+      </nav>
+      <h1>Incident details</h1>
+      <p class="empty-state" data-incident-loading>Loading incident details...</p>
+    </main>
+  </div>
+  <script is:inline src="/scripts/live-records.js"></script>
+</BaseLayout>

@@ -33,7 +33,7 @@ function durationMinutes(startedAt: string, resolvedAt?: string) {
         <h1>Past incidents</h1>
         <p>See recent incidents and how they were resolved.</p>
       </header>
-      <section class="history-list" aria-label="Past incidents">
+      <section class="history-list" aria-label="Past incidents" data-history-list data-time-zone={site.timeZone}>
         {incidents.length === 0 ? (
           <p class="empty-state">No incidents have been published.</p>
         ) : incidents.map((incident) => (
@@ -41,7 +41,7 @@ function durationMinutes(startedAt: string, resolvedAt?: string) {
             <div class="event-date"><time datetime={incident.startedAt}>{day.format(new Date(incident.startedAt))}</time></div>
             <div>
               <span class:list={["state-label", incident.state !== "resolved" && `text-${incident.impact}`]}>{incident.state.replaceAll("_", " ")}</span>
-              <h2><a href={`/incidents/${incident.slug}/`}>{incident.title}</a></h2>
+              <h2><a href={`/incidents/?id=${incident.slug}`}>{incident.title}</a></h2>
               <p>{incident.updates.at(-1)?.message}</p>
               <dl class="event-meta">
                 <div><dt>Impact</dt><dd>{incident.impact.replaceAll("_", " ")}</dd></div>
@@ -55,4 +55,5 @@ function durationMinutes(startedAt: string, resolvedAt?: string) {
     </main>
   </div>
   <SubscribeDialog {site} />
+  <script is:inline src="/scripts/live-records.js"></script>
 </BaseLayout>
