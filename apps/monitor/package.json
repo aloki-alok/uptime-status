@@ -1,0 +1,16 @@
+{
+  "name": "@uptime-status/monitor-app",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "bun src/index.ts",
+    "test": "bun test",
+    "typecheck": "bunx tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@uptime-status/domain": "workspace:*",
+    "@uptime-status/monitor": "workspace:*",
+    "@uptime-status/snapshot": "workspace:*"
+  }
+}
