@@ -233,6 +233,27 @@ function hasValidMaintenanceSemantics(maintenance: Maintenance, componentSlugs: 
   );
 }
 
+export function validateIncident(
+  input: unknown,
+  componentSlugs: ReadonlySet<string>,
+  active: boolean,
+): input is Incident {
+  return (
+    Value.Check(IncidentSchema, input) &&
+    hasValidIncidentSemantics(input, new Set(componentSlugs), active)
+  );
+}
+
+export function validateMaintenance(
+  input: unknown,
+  componentSlugs: ReadonlySet<string>,
+): input is Maintenance {
+  return (
+    Value.Check(MaintenanceSchema, input) &&
+    hasValidMaintenanceSemantics(input, new Set(componentSlugs))
+  );
+}
+
 export function validateStatusSnapshot(input: unknown): input is StatusSnapshot {
   if (!Value.Check(StatusSnapshotSchema, input)) return false;
 
@@ -272,6 +293,7 @@ export function validateStatusSnapshot(input: unknown): input is StatusSnapshot 
     isFresh: true,
     componentStates: input.components.map((component) => component.state),
     activeIncidents: input.activeIncidents,
+    scheduledMaintenance: input.scheduledMaintenance,
   });
   if (input.overallStatus !== "unknown" && input.overallStatus !== expectedStatus) return false;
 

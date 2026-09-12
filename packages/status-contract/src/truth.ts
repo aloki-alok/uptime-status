@@ -1,4 +1,4 @@
-import type { Incident, StatusState } from "./schema";
+import type { Incident, Maintenance, StatusState } from "./schema";
 
 const stateRank: Record<StatusState, number> = {
   operational: 0,
@@ -33,6 +33,7 @@ export function deriveOverallStatus(input: {
   isFresh: boolean;
   componentStates: StatusState[];
   activeIncidents: Incident[];
+  scheduledMaintenance?: Maintenance[];
 }): StatusState {
   if (!input.isFresh || input.componentStates.length === 0) {
     return "unknown";
@@ -52,8 +53,15 @@ export function deriveOverallStatus(input: {
     return "degraded";
   }
 
-  return input.componentStates.reduce<StatusState>(
+  const componentStatus = input.componentStates.reduce<StatusState>(
     (worst, current) => (stateRank[current] > stateRank[worst] ? current : worst),
     "operational",
   );
+  if (
+    componentStatus === "operational" &&
+    input.scheduledMaintenance?.some((item) => item.state === "active")
+  ) {
+    return "maintenance";
+  }
+  return componentStatus;
 }

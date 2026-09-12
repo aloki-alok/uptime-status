@@ -2,8 +2,11 @@
 // so the container profile can publish a page without an Uptime Kuma export in between.
 // Unlike publisher.ts (one HTTPS probe, one component, always fresh) this reads history that
 // may be stale or missing, so freshness and unknown-day handling are the whole point here.
+import { createHash } from "node:crypto";
 import {
   deriveOverallStatus,
+  type Incident,
+  type Maintenance,
   PUBLIC_HISTORY_WINDOW_DAYS,
   type SiteConfig,
   type StatusSnapshot,
@@ -20,6 +23,7 @@ export type BuildSnapshotFromStoreOptions = {
   site: SiteConfig;
   now?: () => Date;
   previous?: StatusSnapshot | null;
+  curated?: { incidents: Incident[]; maintenances: Maintenance[] };
 };
 
 type LatestCheckRow = { observed_at: number; response_ms: number | null };
@@ -106,16 +110,11 @@ function buildLatency(store: MonitorStore, componentId: string, anchorSeconds: n
     }));
 }
 
-function stableHash(input: string) {
-  let hash = 5381;
-  for (let index = 0; index < input.length; index++) {
-    hash = (hash * 33) ^ input.charCodeAt(index);
-  }
-  return (hash >>> 0).toString(16);
-}
-
-function sourceRevision(latestSeconds: number, componentIds: string[]) {
-  return `store-${latestSeconds}-${stableHash(componentIds.join(","))}`;
+function sourceRevision(latestSeconds: number, componentIds: string[], curatedKeys: string[]) {
+  const digest = createHash("sha256")
+    .update(JSON.stringify({ componentIds, curatedKeys: curatedKeys.sort() }))
+    .digest("hex");
+  return `store-${latestSeconds}-${digest}`;
 }
 
 export function buildSnapshotFromStore(options: BuildSnapshotFromStoreOptions): StatusSnapshot {
@@ -125,7 +124,8 @@ export function buildSnapshotFromStore(options: BuildSnapshotFromStoreOptions): 
   const endDate = nowDate.toISOString().slice(0, 10);
 
   // First pass: find each component's newest check so the overall generatedAt (the max) is
-  // known before any per-component fallback needs it — order-independent, unlike a running max.
+  // known before any per-component fallback needs it. This avoids a running maximum that
+  // depends on component order.
   const latestChecks = site.components.map(
     (configured) =>
       store.db
@@ -171,7 +171,43 @@ export function buildSnapshotFromStore(options: BuildSnapshotFromStoreOptions): 
 
   const isFresh =
     nowDate.getTime() - Date.parse(generatedAt) <= site.monitoring.staleAfterSeconds * 1000;
-  const activeIncidents: StatusSnapshot["activeIncidents"] = previous?.activeIncidents ?? [];
+  const activeIncidents: StatusSnapshot["activeIncidents"] = options.curated
+    ? options.curated.incidents.filter((incident) => incident.state !== "resolved")
+    : (previous?.activeIncidents ?? []);
+  const projectedMaintenance = options.curated?.maintenances.map((maintenance) => {
+    if (maintenance.state !== "scheduled" && maintenance.state !== "active") return maintenance;
+    const currentTime = nowDate.getTime();
+    if (currentTime >= Date.parse(maintenance.endsAt))
+      return { ...maintenance, state: "completed" as const };
+    if (currentTime >= Date.parse(maintenance.startsAt))
+      return { ...maintenance, state: "active" as const };
+    return maintenance;
+  });
+  const scheduledMaintenance: StatusSnapshot["scheduledMaintenance"] = options.curated
+    ? (projectedMaintenance ?? []).filter((maintenance) =>
+        ["scheduled", "active", "verifying"].includes(maintenance.state),
+      )
+    : (previous?.scheduledMaintenance ?? []);
+  const recentEvents: StatusSnapshot["recentEvents"] = options.curated
+    ? [
+        ...options.curated.incidents.filter((incident) => incident.state === "resolved"),
+        ...(projectedMaintenance ?? []).filter((maintenance) =>
+          ["completed", "cancelled"].includes(maintenance.state),
+        ),
+      ]
+        .sort((a, b) =>
+          (b.updates.at(-1)?.publishedAt ?? "").localeCompare(a.updates.at(-1)?.publishedAt ?? ""),
+        )
+        .slice(0, 100)
+    : (previous?.recentEvents ?? []);
+  const curatedKeys = options.curated
+    ? [
+        ...options.curated.incidents.map((event) => `incident:${event.slug}:${event.revision}`),
+        ...options.curated.maintenances.map(
+          (event) => `maintenance:${event.slug}:${event.revision}`,
+        ),
+      ]
+    : [];
 
   const snapshot: StatusSnapshot = {
     schemaVersion: "1.0.0",
@@ -180,16 +216,18 @@ export function buildSnapshotFromStore(options: BuildSnapshotFromStoreOptions): 
     sourceRevision: sourceRevision(
       latestSeconds,
       site.components.map((component) => component.componentId),
+      curatedKeys,
     ),
     overallStatus: deriveOverallStatus({
       isFresh,
       componentStates: components.map((component) => component.state),
       activeIncidents,
+      scheduledMaintenance,
     }),
     components,
     activeIncidents,
-    scheduledMaintenance: previous?.scheduledMaintenance ?? [],
-    recentEvents: previous?.recentEvents ?? [],
+    scheduledMaintenance,
+    recentEvents,
   };
 
   if (!validateStatusSnapshot(snapshot)) {

@@ -3,6 +3,7 @@
 import type { SiteConfig } from "@uptime-status/domain";
 import { check, type MonitorStore } from "@uptime-status/monitor";
 import { buildSnapshotFromStore } from "@uptime-status/snapshot";
+import { CuratedStore } from "./curated";
 import type { PublishSink } from "./sink";
 import type { MonitorTarget } from "./targets";
 
@@ -72,7 +73,13 @@ export function createPublisher(deps: PublisherDeps) {
   return async function publish() {
     let body: string;
     try {
-      const snapshot = buildSnapshot({ store: deps.store, site: deps.site, now: deps.now });
+      const curated = new CuratedStore(deps.store.db, deps.site).all();
+      const snapshot = buildSnapshot({
+        store: deps.store,
+        site: deps.site,
+        curated,
+        now: deps.now,
+      });
       body = JSON.stringify(snapshot);
     } catch (err) {
       log({ kind: "publish.build_failed", message: errorMessage(err) });
