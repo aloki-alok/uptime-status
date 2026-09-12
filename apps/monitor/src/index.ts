@@ -4,6 +4,7 @@
 import { type SiteConfig, siteConfigIssues } from "@uptime-status/domain";
 import { MonitorStore } from "@uptime-status/monitor";
 import { createMonitorApp } from "./app";
+import { runOperator } from "./operator";
 import { createFilesystemSink } from "./sink";
 
 function log(line: Record<string, unknown>) {
@@ -48,6 +49,11 @@ function errorMessage(err: unknown) {
 }
 
 async function main() {
+  const operatorFlag = process.argv.indexOf("--operator");
+  if (operatorFlag !== -1) {
+    process.exitCode = await runOperator(process.argv.slice(operatorFlag + 1));
+    return;
+  }
   const siteConfigPath = requireEnv("STATUS_SITE_CONFIG");
   const databasePath = requireEnv("STATUS_DATABASE");
   const outputDir = requireEnv("STATUS_OUTPUT_DIR");

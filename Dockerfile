@@ -21,6 +21,7 @@ WORKDIR /app
 # The musl-compiled binary links against libstdc++, which bare Alpine does not ship.
 RUN apk add --no-cache libstdc++ && addgroup -S monitor && adduser -S -G monitor -h /app -H monitor
 COPY --from=build /monitor /usr/local/bin/monitor
+RUN printf '#!/bin/sh\nexec /usr/local/bin/monitor --operator "$@"\n' > /usr/local/bin/status && chmod 755 /usr/local/bin/status
 
 # STATUS_DATABASE must point inside this volume so history survives the container being
 # replaced. Losing it means losing every day since the migration cutoff.
