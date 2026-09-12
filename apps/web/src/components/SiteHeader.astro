@@ -10,14 +10,19 @@ type Props = {
 const { active = "overview", site } = Astro.props;
 const logoLight = siteAssetDataUrl(site.brand.logoLightPath);
 const logoDark = siteAssetDataUrl(site.brand.logoDarkPath);
+const iconLight = siteAssetDataUrl(site.brand.iconLightPath);
+const iconDark = siteAssetDataUrl(site.brand.iconDarkPath);
 ---
 
 <header class="site-header">
   <a class="site-brand" href={site.brand.homeUrl} aria-label={`${site.displayName} home`}>
-    <picture>
-      <source srcset={logoDark} media="(prefers-color-scheme: dark)" />
-      <img src={logoLight} alt={site.brand.logoAlt} width="32" height="32" />
-    </picture>
+    <span class="brand-images">
+      <img class="brand-wordmark brand-light" src={logoLight} alt={site.brand.logoAlt} width="400" height="112" />
+      <img class="brand-wordmark brand-dark" src={logoDark} alt="" width="400" height="112" />
+      <img class="brand-icon brand-light" src={iconLight} alt="" width="500" height="500" />
+      <img class="brand-icon brand-dark" src={iconDark} alt="" width="500" height="500" />
+    </span>
+    <span class="brand-status" aria-hidden="true">Status</span>
   </a>
   <nav aria-label="Status navigation">
     <a href="/history/" aria-current={active === "history" ? "page" : undefined}>Past incidents</a>
@@ -39,6 +44,7 @@ const logoDark = siteAssetDataUrl(site.brand.logoDarkPath);
         )}
       </a>
     )}
-    <button class="subscribe-trigger" type="button" data-dialog-open aria-label="Subscribe to status updates">Get updates</button>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode" aria-pressed="false">Dark mode</button>
+    {site.subscriptions.enabled && <button class="subscribe-trigger" type="button" data-dialog-open aria-label="Subscribe to status updates">Get updates</button>}
   </nav>
 </header>

@@ -8,6 +8,7 @@ const incidents = [
   ...snapshot.activeIncidents,
   ...snapshot.recentEvents.filter((event) => "startedAt" in event),
 ];
+const pastMaintenance = snapshot.recentEvents.filter((event) => "endsAt" in event);
 const componentNames = new Map(
   snapshot.components.map((component) => [component.slug, component.name]),
 );
@@ -47,6 +48,25 @@ function durationMinutes(startedAt: string, resolvedAt?: string) {
                 <div><dt>Impact</dt><dd>{incident.impact.replaceAll("_", " ")}</dd></div>
                 <div><dt>Affected</dt><dd>{incident.affectedComponents.map((slug) => componentNames.get(slug) ?? slug).join(", ")}</dd></div>
                 <div><dt>Duration</dt><dd>{durationMinutes(incident.startedAt, incident.resolvedAt)} minutes</dd></div>
+              </dl>
+            </div>
+          </article>
+        ))}
+      </section>
+      <h2 class="history-category">Past maintenance</h2>
+      <section class="history-list" aria-label="Past maintenance" data-past-maintenance-list>
+        {pastMaintenance.length === 0 ? (
+          <p class="empty-state">No past maintenance has been published.</p>
+        ) : pastMaintenance.map((maintenance) => (
+          <article class="event-record muted-record">
+            <div class="event-date"><time datetime={maintenance.startsAt}>{day.format(new Date(maintenance.startsAt))}</time></div>
+            <div>
+              <span class="state-label">{maintenance.state}</span>
+              <h2>{maintenance.title}</h2>
+              <p>{maintenance.expectedImpact}</p>
+              <dl class="event-meta">
+                <div><dt>Affected</dt><dd>{maintenance.affectedComponents.map((slug) => componentNames.get(slug) ?? slug).join(", ")}</dd></div>
+                <div><dt>Window</dt><dd>{durationMinutes(maintenance.startsAt, maintenance.endsAt)} minutes</dd></div>
               </dl>
             </div>
           </article>

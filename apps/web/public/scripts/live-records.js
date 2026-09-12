@@ -129,6 +129,43 @@ function renderHistory(snapshot) {
   container.replaceChildren(...cards);
 }
 
+function renderPastMaintenance(snapshot) {
+  const container = document.querySelector("[data-past-maintenance-list]");
+  if (!container) return;
+  const names = new Map(snapshot.components.map((component) => [component.slug, component.name]));
+  const windows = snapshot.recentEvents
+    .filter((event) => "endsAt" in event && validMaintenance(event))
+    .sort((a, b) => Date.parse(b.startsAt) - Date.parse(a.startsAt));
+  if (!windows.length) {
+    container.replaceChildren(node("p", "empty-state", "No past maintenance has been published."));
+    return;
+  }
+  const cards = windows.map((maintenance) => {
+    const article = node("article", "event-record muted-record");
+    const date = node("div", "event-date");
+    date.append(timeElement(maintenance.startsAt, day));
+    const content = node("div");
+    content.append(
+      node("span", "state-label", maintenance.state),
+      node("h2", "", maintenance.title),
+      node("p", "", maintenance.expectedImpact),
+    );
+    const meta = node("dl", "event-meta");
+    const minutes = Math.max(
+      1,
+      Math.round((Date.parse(maintenance.endsAt) - Date.parse(maintenance.startsAt)) / 60_000),
+    );
+    meta.append(
+      line("Affected", namesFor(maintenance.affectedComponents, names)),
+      line("Window", `${minutes} minutes`),
+    );
+    content.append(meta);
+    article.append(date, content);
+    return article;
+  });
+  container.replaceChildren(...cards);
+}
+
 function renderMaintenance(snapshot) {
   const container = document.querySelector("[data-maintenance-list]");
   if (!container) return;
@@ -237,6 +274,7 @@ async function refreshRecords() {
     )
       throw new Error("Invalid snapshot");
     renderHistory(snapshot);
+    renderPastMaintenance(snapshot);
     renderMaintenance(snapshot);
     renderDetail(snapshot);
   } catch {

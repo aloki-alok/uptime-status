@@ -24,10 +24,6 @@ const { variant, showReviewRail = false, snapshot = buildSnapshot, liveUpdates =
   <div class="page-shell">
     <SiteHeader {site} />
     <StatusOverview {snapshot} {site} {variant} {showReviewRail} />
-    <footer class="site-footer">
-      <span>© {new Date().getUTCFullYear()} {site.legalName}</span>
-      <a href={site.brand.homeUrl}>{new URL(site.brand.homeUrl).hostname}</a>
-    </footer>
   </div>
   <div class="uptime-tooltip" id="uptime-day-tooltip" role="tooltip" hidden></div>
   <SubscribeDialog {site} />

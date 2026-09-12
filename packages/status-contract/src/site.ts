@@ -43,6 +43,37 @@ const CommunitySchema = Type.Object(
   { additionalProperties: false },
 );
 
+const FooterSchema = Type.Object(
+  {
+    sections: Type.Array(
+      Type.Object(
+        {
+          heading: Type.String({ minLength: 1, maxLength: 80, pattern: "\\S" }),
+          links: Type.Array(
+            Type.Object(
+              {
+                label: Type.String({ minLength: 1, maxLength: 80, pattern: "\\S" }),
+                url: HttpsUrlSchema,
+              },
+              { additionalProperties: false },
+            ),
+            { minItems: 1, maxItems: 8 },
+          ),
+        },
+        { additionalProperties: false },
+      ),
+      { minItems: 1, maxItems: 4 },
+    ),
+  },
+  { additionalProperties: false },
+);
+
+const GroupIconSchema = Type.Union([
+  Type.Literal("grid"),
+  Type.Literal("waveform"),
+  Type.Literal("globe"),
+]);
+
 const UptimeKumaSourceSchema = Type.Object(
   {
     sourceId: SlugSchema,
@@ -244,8 +275,21 @@ export const SiteConfigSchema = Type.Object(
       { additionalProperties: false },
     ),
     community: Type.Optional(CommunitySchema),
+    footer: Type.Optional(FooterSchema),
     presentation: Type.Object(
       {
+        groupIcons: Type.Optional(
+          Type.Array(
+            Type.Object(
+              {
+                group: Type.String({ minLength: 1, maxLength: 120, pattern: "\\S" }),
+                icon: GroupIconSchema,
+              },
+              { additionalProperties: false },
+            ),
+            { maxItems: 12 },
+          ),
+        ),
         bannerVariant: Type.Optional(
           Type.Union([Type.Literal("classic"), Type.Literal("compact"), Type.Literal("plain")]),
         ),
@@ -427,6 +471,24 @@ export function siteConfigIssues(input: unknown): SiteConfigIssue[] {
   if (config.community && !isHttpsUrl(config.community.url)) {
     add("/community/url", "must be an HTTPS URL without credentials, query, or fragment");
   }
+  config.footer?.sections.forEach((section, sectionIndex) => {
+    section.links.forEach((link, linkIndex) => {
+      if (!isHttpsUrl(link.url)) {
+        add(
+          `/footer/sections/${sectionIndex}/links/${linkIndex}/url`,
+          "must be an HTTPS URL without credentials, query, or fragment",
+        );
+      }
+    });
+  });
+  const groups = new Set(config.components.map((component) => component.group));
+  const iconGroups = config.presentation.groupIcons?.map((item) => item.group) ?? [];
+  if (!unique(iconGroups)) add("/presentation/groupIcons", "group names must be unique");
+  config.presentation.groupIcons?.forEach((item, index) => {
+    if (!groups.has(item.group)) {
+      add(`/presentation/groupIcons/${index}/group`, "must name a configured component group");
+    }
+  });
   config.monitoring.sources.forEach((source, index) => {
     if (source.adapter !== "https") return;
     if (!isHttpsUrl(source.url)) {

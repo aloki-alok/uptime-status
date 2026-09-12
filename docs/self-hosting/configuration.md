@@ -40,10 +40,12 @@ The same canonical validator also runs when the web application loads build data
 - Logo, icon, favicon, and optional email media paths begin with `./`, stay inside the site directory, and contain no empty, `.` or `..` path segments.
 - `brand.logoAlt` describes the site identity, not the image appearance.
 - `community` is optional. Its `kind` is `discord`, `forum`, or `community`, and its URL must use HTTPS.
+- `footer.sections` is optional. Each section has a heading and up to eight labeled HTTPS links. Deployments choose their own resources, community, and legal links; no HTML or script content is accepted.
 
 ### Presentation
 
 - `presentation.bannerVariant` is optional. Supported values are `classic`, `compact`, and `plain`; omission selects `classic`.
+- `presentation.groupIcons` optionally maps configured component groups to `grid`, `waveform`, or `globe` icons. Group names must exist and cannot repeat.
 - `statusCopy` supplies public text for operational, degraded, partial outage, major outage, maintenance, and delayed states.
 - Each semantic color is a six-digit hex value. Operational, maintenance, degraded, outage, and unknown colors must be distinct and must support readable light or dark text.
 

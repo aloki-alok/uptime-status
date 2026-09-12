@@ -1,0 +1,27 @@
+---
+import type { SiteConfig } from "@uptime-status/domain";
+
+type Props = { site: SiteConfig };
+const { site } = Astro.props;
+---
+
+<footer class="site-footer page-shell">
+  {site.footer && (
+    <nav class="footer-sections" aria-label="Footer links">
+      {site.footer.sections.map((section) => (
+        <section>
+          <h2>{section.heading}</h2>
+          <ul>
+            {section.links.map((link) => (
+              <li><a href={link.url} target="_blank" rel="noopener noreferrer">{link.label}</a></li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </nav>
+  )}
+  <div class="footer-bottom">
+    <span>© {new Date().getUTCFullYear()} {site.legalName}</span>
+    <a href={site.brand.homeUrl}>{new URL(site.brand.homeUrl).hostname}</a>
+  </div>
+</footer>

@@ -24,6 +24,41 @@ describe("site configuration", () => {
     expect(validateSiteConfig(example)).toBe(true);
   });
 
+  test("allows deployment-owned footer links and section icons without unsafe destinations", () => {
+    const configured = {
+      ...example,
+      footer: {
+        sections: [
+          { heading: "Resources", links: [{ label: "Docs", url: "https://example.com/docs" }] },
+        ],
+      },
+      presentation: {
+        ...example.presentation,
+        groupIcons: [{ group: example.components[0].group, icon: "grid" }],
+      },
+    };
+    expect(validateSiteConfig(configured)).toBe(true);
+    expect(
+      siteConfigIssues({
+        ...configured,
+        footer: {
+          sections: [
+            { heading: "Resources", links: [{ label: "Bad", url: "javascript:alert(1)" }] },
+          ],
+        },
+      }),
+    ).toContainEqual(expect.objectContaining({ path: "/footer/sections/0/links/0/url" }));
+    expect(
+      siteConfigIssues({
+        ...configured,
+        presentation: {
+          ...configured.presentation,
+          groupIcons: [{ group: "Missing", icon: "grid" }],
+        },
+      }),
+    ).toContainEqual(expect.objectContaining({ path: "/presentation/groupIcons/0/group" }));
+  });
+
   test("rejects unknown keys, duplicate bindings, and unsafe stale policy", () => {
     expect(validateSiteConfig({ ...example, unexpected: true })).toBe(false);
     expect(

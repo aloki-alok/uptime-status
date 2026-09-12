@@ -6,24 +6,19 @@ test.describe("status overview", () => {
       await page.goto(route);
 
       await expect(page.getByRole("heading", { level: 1 })).toHaveText("All systems operational");
-      await expect(page.getByRole("heading", { name: "Service health" })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "Availability" })).toBeVisible();
       await expect(page.locator(".uptime-day")).toHaveCount(180);
-      await expect(page.locator(".site-brand img")).toHaveCount(1);
+      await expect(page.locator(".site-brand img:visible")).toHaveCount(1);
       await expect(page.locator(".latency-card svg[role='img']")).toHaveCount(1);
       await expect(page.getByText("Infrastructure capacity update")).toBeVisible();
     });
   }
 
-  test("subscription preview uses native dialog behavior", async ({ page }) => {
+  test("a disabled subscription cannot invite visitors to an unavailable form", async ({
+    page,
+  }) => {
     await page.goto("/");
-    await page.getByRole("button", { name: "Subscribe to status updates" }).click();
-
-    const dialog = page.getByRole("dialog", { name: "Get status updates" });
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByLabel("Email address")).toBeDisabled();
-    await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
-    await expect(page.getByRole("button", { name: "Subscribe to status updates" })).toBeFocused();
+    await expect(page.getByRole("button", { name: "Subscribe to status updates" })).toHaveCount(0);
   });
 
   test("public header keeps only primary actions", async ({ page }) => {
@@ -33,10 +28,10 @@ test.describe("status overview", () => {
       "href",
       "https://example.com",
     );
-    await expect(page.locator(".site-brand img")).toHaveAttribute("src", /^data:image\//);
+    await expect(page.locator(".site-brand img:visible")).toHaveAttribute("src", /^data:image\//);
     expect(
       await page
-        .locator(".site-brand img")
+        .locator(".site-brand img:visible")
         .evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0),
     ).toBe(true);
     await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(1);
@@ -44,6 +39,21 @@ test.describe("status overview", () => {
     await expect(page.locator(".community-link")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Planned work" })).toHaveCount(0);
     await expect(page.locator(".state-meta")).toHaveCount(0);
+  });
+
+  test("light is the default and the theme control remembers a dark choice", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.goto("/");
+    const mark = (page.viewportSize()?.width ?? 1280) <= 560 ? "brand-icon" : "brand-wordmark";
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator(`.${mark}.brand-light`)).toBeVisible();
+    await page.getByRole("button", { name: "Switch to dark mode" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator(`.${mark}.brand-dark`)).toBeVisible();
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await page.getByRole("button", { name: "Switch to light mode" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   });
 
   test("uptime history exposes only the three public status categories", async ({ page }) => {
@@ -215,7 +225,7 @@ test("core status content is present in the server response", async ({ request }
   expect(response.ok()).toBe(true);
   expect(html).toContain('rel="icon" href="data:image/');
   expect(html).toContain("All systems operational");
-  expect(html).toContain("Service health");
+  expect(html).toContain("Availability");
   expect(html).toContain("Public API");
   expect(html).not.toContain("Customer surfaces");
   expect(html).not.toContain("Core platform");
