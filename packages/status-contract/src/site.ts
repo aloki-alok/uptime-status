@@ -245,6 +245,7 @@ export const SiteConfigSchema = Type.Object(
     brand: Type.Object(
       {
         homeUrl: HttpsUrlSchema,
+        homeLinkLabel: Type.Optional(Type.String({ minLength: 1, maxLength: 40 })),
         logoLightPath: Type.String({
           minLength: 3,
           maxLength: 300,

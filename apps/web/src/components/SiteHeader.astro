@@ -26,6 +26,7 @@ const iconDark = siteAssetDataUrl(site.brand.iconDarkPath);
   </a>
   <nav aria-label="Status navigation">
     <a href="/history/" aria-current={active === "history" ? "page" : undefined}>Past incidents</a>
+    <a class="platform-link" href={site.brand.homeUrl}>{site.brand.homeLinkLabel ?? "Visit website"}</a>
     {site.community && (
       <a
         class:list={["community-link", site.community.kind !== "discord" && "community-text"]}
@@ -44,7 +45,10 @@ const iconDark = siteAssetDataUrl(site.brand.iconDarkPath);
         )}
       </a>
     )}
-    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode" aria-pressed="false">Dark mode</button>
+    <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark mode" aria-pressed="false" title="Switch to dark mode">
+      <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.4A8.5 8.5 0 0 1 9.6 3.5 8.5 8.5 0 1 0 20.5 14.4Z" /></svg>
+      <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
+    </button>
     {site.subscriptions.enabled && <button class="subscribe-trigger" type="button" data-dialog-open aria-label="Subscribe to status updates">Get updates</button>}
   </nav>
 </header>

@@ -21,7 +21,7 @@ test.describe("status overview", () => {
     await expect(page.getByRole("button", { name: "Subscribe to status updates" })).toHaveCount(0);
   });
 
-  test("public header keeps only primary actions", async ({ page }) => {
+  test("public header links back to the website", async ({ page }) => {
     await page.goto("/");
 
     await expect(page.getByRole("link", { name: "Example Service status home" })).toHaveAttribute(
@@ -34,8 +34,12 @@ test.describe("status overview", () => {
         .locator(".site-brand img:visible")
         .evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0),
     ).toBe(true);
-    await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(1);
+    await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(2);
     await expect(page.getByRole("link", { name: "Past incidents" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Visit website" })).toHaveAttribute(
+      "href",
+      "https://example.com",
+    );
     await expect(page.locator(".community-link")).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Planned work" })).toHaveCount(0);
     await expect(page.locator(".state-meta")).toHaveCount(0);
@@ -46,9 +50,14 @@ test.describe("status overview", () => {
     await page.goto("/");
     const mark = (page.viewportSize()?.width ?? 1280) <= 560 ? "brand-icon" : "brand-wordmark";
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator(".theme-icon-moon")).toBeVisible();
+    await expect(page.locator(".theme-icon-sun")).toBeHidden();
+    await expect(page.locator(".theme-toggle")).toHaveText("");
     await expect(page.locator(`.${mark}.brand-light`)).toBeVisible();
     await page.getByRole("button", { name: "Switch to dark mode" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(page.locator(".theme-icon-sun")).toBeVisible();
+    await expect(page.locator(".theme-icon-moon")).toBeHidden();
     await expect(page.locator(`.${mark}.brand-dark`)).toBeVisible();
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -389,6 +398,12 @@ test("operator-reported operational days do not claim measured uptime", async ({
     /Reported operational by service owner. Uptime was not measured./,
   );
   await expect(history).toHaveAttribute("aria-label", /1 operator-reported operational day/);
+  const reportedColor = await day.evaluate((element) => getComputedStyle(element).backgroundColor);
+  const measuredColor = await history
+    .locator(".day-operational:not(.day-reported)")
+    .first()
+    .evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(reportedColor).toBe(measuredColor);
 });
 
 test("a single latency point replaces older geometry and remains inspectable", async ({
