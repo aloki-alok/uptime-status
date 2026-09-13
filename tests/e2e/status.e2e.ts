@@ -24,9 +24,9 @@ test.describe("status overview", () => {
   test("public header keeps only primary actions", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("link", { name: "Example Service home" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "Example Service status home" })).toHaveAttribute(
       "href",
-      "https://example.com",
+      "/",
     );
     await expect(page.locator(".site-brand img:visible")).toHaveAttribute("src", /^data:image\//);
     expect(
@@ -111,6 +111,8 @@ test("maintenance and history routes expose operational detail", async ({ page }
     "href",
     "/incidents/?id=elevated-api-latency",
   );
+  await page.getByRole("link", { name: "Example Service status home" }).click();
+  await expect(page).toHaveURL("/");
 });
 
 test("newly published notices appear without rebuilding the static site", async ({
