@@ -88,14 +88,17 @@ describe("history import preview", () => {
     expect(() =>
       previewHistoryImport({
         ...input,
-        existing: [{ componentId: "other", kind: "daily", observedAt: "2026-09-07" }],
-      }),
-    ).toThrow("existing history record");
-    expect(() =>
-      previewHistoryImport({
-        ...input,
         existing: [{ componentId: "api", kind: "daily", observedAt: "2026-02-30" }],
       }),
     ).toThrow("existing history record");
+  });
+
+  test("ignores other services when planning a single-service import", () => {
+    expect(() =>
+      previewHistoryImport({
+        ...input,
+        existing: [{ componentId: "other", kind: "daily", observedAt: "2026-09-07" }],
+      }),
+    ).not.toThrow();
   });
 });

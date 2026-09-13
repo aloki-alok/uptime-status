@@ -53,12 +53,13 @@ function assertExistingRecords(bundle: HistoryImportBundle, records: ExistingHis
   const components = new Set(bundle.components.map((component) => component.componentId));
   const keys = new Set<string>();
   for (const record of records) {
+    if (!components.has(record.componentId)) continue;
     const validInstant =
       record.kind === "daily"
         ? validDay(record.observedAt)
         : !Number.isNaN(Date.parse(record.observedAt));
     const key = recordKey(record);
-    if (!components.has(record.componentId) || !validInstant || keys.has(key)) {
+    if (!validInstant || keys.has(key)) {
       throw new Error("The existing history record set is invalid");
     }
     keys.add(key);
