@@ -351,7 +351,7 @@ function updateComponents(components) {
   }
 }
 
-function chartData(latency, latestObservedAt) {
+function chartData(latency, latestObservedAt, gapThresholdMs) {
   const minuteMs = 60_000;
   const end = Date.parse(latestObservedAt);
   const endBucket = Math.floor(end / minuteMs) * minuteMs;
@@ -378,7 +378,7 @@ function chartData(latency, latestObservedAt) {
   }));
   const segments = points.reduce((result, item, index) => {
     const previous = points[index - 1];
-    if (!previous || Date.parse(item.observedAt) - Date.parse(previous.observedAt) > minuteMs * 1.5)
+    if (!previous || Date.parse(item.observedAt) - Date.parse(previous.observedAt) > gapThresholdMs)
       result.push([item]);
     else result.at(-1).push(item);
     return result;
@@ -426,7 +426,11 @@ function updateLatency(components) {
     const card = document.querySelector(`[data-latency-slug="${component.slug}"]`);
     if (!card) continue;
     const latency = component.latency;
-    const data = chartData(latency, component.latestObservedAt);
+    const data = chartData(
+      latency,
+      component.latestObservedAt,
+      Number(card.dataset.gapThresholdMs) || 90_000,
+    );
     if (!data) {
       card.hidden = true;
       window.latencyCharts?.update(card, []);
@@ -449,7 +453,7 @@ function updateLatency(components) {
     const chart = card.querySelector("svg");
     chart.setAttribute(
       "aria-label",
-      `${component.name} response time across ${data.checks} published checks in the latest 60-minute window. Latest sample ${Math.round(latest.avgMs)} milliseconds and weighted average ${data.average} milliseconds. Missing minutes remain gaps. Scale ${data.min} to ${data.max} milliseconds.`,
+      `${component.name} response time across ${data.checks} published checks in the latest 60-minute window. Latest sample ${Math.round(latest.avgMs)} milliseconds and weighted average ${data.average} milliseconds. Longer gaps without checks remain disconnected. Scale ${data.min} to ${data.max} milliseconds.`,
     );
     window.latencyCharts?.update(card, data.points);
   }

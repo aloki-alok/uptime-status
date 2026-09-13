@@ -27,6 +27,7 @@ const measured = components.filter((component) => component.latency !== null);
 function chartData(
   latency: NonNullable<(typeof measured)[number]["latency"]>,
   latestObservedAt: string,
+  gapThresholdMs: number,
 ) {
   const recent = windowLatency(latency, latestObservedAt);
   if (recent.length === 0) return null;
@@ -49,7 +50,7 @@ function chartData(
   });
   const segments = points.reduce<(typeof points)[]>((result, item, index) => {
     const previous = points[index - 1];
-    if (!previous || Date.parse(item.observedAt) - Date.parse(previous.observedAt) > GAP_THRESHOLD_MS) {
+    if (!previous || Date.parse(item.observedAt) - Date.parse(previous.observedAt) > gapThresholdMs) {
       result.push([item]);
     } else {
       result.at(-1)?.push(item);
@@ -86,7 +87,11 @@ const number = new Intl.NumberFormat(site.locale, { maximumFractionDigits: 0 });
       {measured.map((component) => {
         const latency = component.latency;
         if (!latency) return null;
-        const chart = chartData(latency, component.latestObservedAt);
+        const configuredComponent = site.components.find((item) => item.componentId === component.slug);
+        const source = site.monitoring.sources.find((item) => item.sourceId === configuredComponent?.sourceId);
+        const intervalSeconds = source?.adapter === "https" ? source.intervalSeconds ?? 60 : 60;
+        const gapThresholdMs = Math.max(GAP_THRESHOLD_MS, Math.ceil(intervalSeconds / 60) * MINUTE_MS);
+        const chart = chartData(latency, component.latestObservedAt, gapThresholdMs);
         const data = chart ?? {
           average: 0,
           checks: 0,
@@ -102,7 +107,7 @@ const number = new Intl.NumberFormat(site.locale, { maximumFractionDigits: 0 });
         const lastObservedAt = data.points.at(-1)?.observedAt;
         const tooltipId = `latency-tooltip-${component.slug}`;
         return (
-          <figure class="latency-card" data-latency-slug={component.slug} hidden={chart === null}>
+          <figure class="latency-card" data-latency-slug={component.slug} data-gap-threshold-ms={gapThresholdMs} hidden={chart === null}>
             <figcaption>
               <div>
                 <h3>{component.name}</h3>
@@ -118,7 +123,7 @@ const number = new Intl.NumberFormat(site.locale, { maximumFractionDigits: 0 });
               <svg
                 viewBox="0 0 600 160"
                 role="img"
-                aria-label={`${component.name} response time across ${data.checks} published checks in the latest 60-minute window. Latest sample ${current} milliseconds and weighted average ${data.average} milliseconds. Missing minutes remain gaps. Scale ${data.min} to ${data.max} milliseconds.`}
+                aria-label={`${component.name} response time across ${data.checks} published checks in the latest 60-minute window. Latest sample ${current} milliseconds and weighted average ${data.average} milliseconds. Longer gaps without checks remain disconnected. Scale ${data.min} to ${data.max} milliseconds.`}
               >
                 <line x1="18" y1="24" x2="582" y2="24" class="chart-grid" />
                 <line x1="18" y1="83" x2="582" y2="83" class="chart-grid" />
