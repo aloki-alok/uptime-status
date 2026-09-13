@@ -595,6 +595,10 @@ dd,
   background: color-mix(in srgb, var(--success) 72%, var(--surface));
 }
 
+.uptime-day.day-reported {
+  background: color-mix(in srgb, var(--success) 43%, var(--surface));
+}
+
 .uptime-day.day-degraded {
   background: color-mix(in srgb, var(--danger) 82%, var(--surface));
 }

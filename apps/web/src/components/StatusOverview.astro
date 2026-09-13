@@ -87,16 +87,18 @@ function historySummary(component: StatusSnapshot["components"][number]) {
   const counts = Map.groupBy(component.history, (day) => day.state);
   const interruptions = component.history.length - (counts.get("operational")?.length ?? 0);
   const measured = component.history.flatMap((day) => (day.uptime === null ? [] : [day.uptime]));
+  const reported = component.history.filter((day) => day.state === "operational" && day.uptime === null).length;
   const average =
     measured.length === 0
       ? "No uptime measurement is available."
-      : `${(measured.reduce((sum, uptime) => sum + uptime, 0) / measured.length).toFixed(3)}% average uptime.`;
+      : `${(measured.reduce((sum, uptime) => sum + uptime, 0) / measured.length).toFixed(3)}% average uptime${reported ? ` across ${measured.length} measured ${measured.length === 1 ? "day" : "days"}` : ""}.`;
+  const reportedCopy = reported ? `${reported} operator-reported operational ${reported === 1 ? "day" : "days"}.` : "";
   const interruptionCopy =
     interruptions === 0
       ? "No interrupted days."
       : `${interruptions} ${interruptions === 1 ? "day" : "days"} with an interruption.`;
 
-  return `${component.name}, 90-day history. ${average} ${interruptionCopy}`;
+  return `${component.name}, 90-day history. ${average} ${reportedCopy} ${interruptionCopy}`;
 }
 
 const historyDate = new Intl.DateTimeFormat(site.locale, {
@@ -107,12 +109,15 @@ const historyDate = new Intl.DateTimeFormat(site.locale, {
 });
 
 function dayDetails(day: StatusSnapshot["components"][number]["history"][number]) {
+  const reported = day.state === "operational" && day.uptime === null;
   const uptime = day.uptime === null ? "No uptime data." : `${day.uptime}% uptime.`;
   const down = `${day.downMinutes} ${day.downMinutes === 1 ? "minute" : "minutes"} down.`;
   // Days are UTC buckets for every reader, so say so: without it a viewer outside UTC
   // reasonably reads the date as local and two people mean different windows by "Apr 2".
   const date = `${historyDate.format(new Date(`${day.date}T00:00:00Z`))} (UTC)`;
-  return `${date}. ${stateLabels[day.state]}. ${uptime} ${down}`;
+  return reported
+    ? `${date}. Reported operational by service owner. Uptime was not measured.`
+    : `${date}. ${stateLabels[day.state]}. ${uptime} ${down}`;
 }
 ---
 
@@ -217,7 +222,7 @@ function dayDetails(day: StatusSnapshot["components"][number]["history"][number]
                 <div class="uptime-history" role="group" aria-label={historySummary(component)} data-component-history>
                   {component.history.map((day, index) => (
                     <time
-                      class:list={["uptime-day", `day-${day.state}`]}
+                      class:list={["uptime-day", `day-${day.state}`, day.state === "operational" && day.uptime === null && "day-reported"]}
                       datetime={day.date}
                       tabindex={index === component.history.length - 1 ? "0" : "-1"}
                       aria-label={dayDetails(day)}

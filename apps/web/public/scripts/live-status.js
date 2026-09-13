@@ -310,15 +310,21 @@ function updateBanner(state, latestCheckAt) {
 
 function historySummary(component) {
   const measured = component.history.filter((day) => typeof day.uptime === "number");
+  const reported = component.history.filter(
+    (day) => day.state === "operational" && day.uptime === null,
+  ).length;
   const interruptions = component.history.filter((day) => day.state !== "operational").length;
   const average = measured.length
-    ? `${(measured.reduce((sum, day) => sum + day.uptime, 0) / measured.length).toFixed(3)}% average uptime.`
+    ? `${(measured.reduce((sum, day) => sum + day.uptime, 0) / measured.length).toFixed(3)}% average uptime${reported ? ` across ${measured.length} measured ${measured.length === 1 ? "day" : "days"}` : ""}.`
     : "No uptime measurement is available.";
+  const reportedCopy = reported
+    ? `${reported} operator-reported operational ${reported === 1 ? "day" : "days"}.`
+    : "";
   const interruptionCopy =
     interruptions === 0
       ? "No interrupted days."
       : `${interruptions} ${interruptions === 1 ? "day" : "days"} with an interruption.`;
-  return `${component.name}, 90-day history. ${average} ${interruptionCopy}`;
+  return `${component.name}, 90-day history. ${average} ${reportedCopy} ${interruptionCopy}`;
 }
 
 function updateComponents(components) {
@@ -346,6 +352,7 @@ function updateComponents(components) {
       if (!cell) return;
       for (const possibleState of states) cell.classList.remove(`day-${possibleState}`);
       cell.classList.add(`day-${day.state}`);
+      cell.classList.toggle("day-reported", day.state === "operational" && day.uptime === null);
       if (window.uptimeHistory?.updateDay) window.uptimeHistory.updateDay(cell, day);
     });
   }
