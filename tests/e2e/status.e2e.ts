@@ -398,12 +398,44 @@ test("operator-reported operational days do not claim measured uptime", async ({
     /Reported operational by service owner. Uptime was not measured./,
   );
   await expect(history).toHaveAttribute("aria-label", /1 operator-reported operational day/);
+  await expect(
+    page.locator('[data-component-slug="public-api"] [data-component-availability]'),
+  ).toContainText("89 of 90 days measured");
   const reportedColor = await day.evaluate((element) => getComputedStyle(element).backgroundColor);
   const measuredColor = await history
     .locator(".day-operational:not(.day-reported)")
     .first()
     .evaluate((element) => getComputedStyle(element).backgroundColor);
   expect(reportedColor).toBe(measuredColor);
+});
+
+test("90-day availability stays visible while bar details omit downtime duration", async ({
+  page,
+  request,
+}) => {
+  const snapshot = await (await request.get("/current.json")).json();
+  snapshot.generatedAt = new Date(Date.now() + 30_000).toISOString();
+  snapshot.latestCheckAt = snapshot.generatedAt;
+  snapshot.sourceRevision = "availability-summary-test-0001";
+  snapshot.components[0].history = snapshot.components[0].history.map((day, index) => ({
+    ...day,
+    uptime: index === 0 ? 99.55 : 100,
+    downMinutes: index === 0 ? 6.48 : 0,
+  }));
+
+  await page.route("**/current.json", (route) => route.fulfill({ json: snapshot }));
+  await page.goto("/");
+
+  const row = page.locator('[data-component-slug="public-api"]');
+  await expect(row.locator("[data-component-availability]")).toContainText("99.995%");
+  await expect(row.locator("[data-component-availability]")).toContainText(
+    "90 of 90 days measured",
+  );
+  const day = row.locator(".uptime-day").first();
+  await expect(day).toHaveAttribute("data-uptime-detail", /99.55% uptime/);
+  await expect(day).not.toHaveAttribute("data-uptime-detail", /minutes? down/);
+  await day.hover();
+  await expect(page.locator("#uptime-day-tooltip")).not.toContainText(/minutes? down/);
 });
 
 test("a single latency point replaces older geometry and remains inspectable", async ({

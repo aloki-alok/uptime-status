@@ -101,6 +101,20 @@ function historySummary(component: StatusSnapshot["components"][number]) {
   return `${component.name}, 90-day history. ${average} ${reportedCopy} ${interruptionCopy}`;
 }
 
+function availabilitySummary(component: StatusSnapshot["components"][number]) {
+  const measured = component.history.filter((day) => day.uptime !== null);
+  const reported = component.history.filter((day) => day.state === "operational" && day.uptime === null).length;
+  const average = measured.length
+    ? measured.reduce((sum, day) => sum + day.uptime!, 0) / measured.length
+    : null;
+  const displayed = average === null ? null : Math.min(average < 100 ? 99.999 : 100, Math.round(average * 1000) / 1000);
+  return {
+    label: measured.length === component.history.length ? "90-day availability" : "Measured availability",
+    value: displayed === null ? "Unavailable" : `${displayed.toFixed(3).replace(/\.?0+$/, "")}%`,
+    coverage: `${measured.length} of ${component.history.length} days measured${reported ? `; ${reported} reported operational` : ""}`,
+  };
+}
+
 const historyDate = new Intl.DateTimeFormat(site.locale, {
   day: "numeric",
   month: "short",
@@ -111,13 +125,12 @@ const historyDate = new Intl.DateTimeFormat(site.locale, {
 function dayDetails(day: StatusSnapshot["components"][number]["history"][number]) {
   const reported = day.state === "operational" && day.uptime === null;
   const uptime = day.uptime === null ? "No uptime data." : `${day.uptime}% uptime.`;
-  const down = `${day.downMinutes} ${day.downMinutes === 1 ? "minute" : "minutes"} down.`;
   // Days are UTC buckets for every reader, so say so: without it a viewer outside UTC
   // reasonably reads the date as local and two people mean different windows by "Apr 2".
   const date = `${historyDate.format(new Date(`${day.date}T00:00:00Z`))} (UTC)`;
   return reported
     ? `${date}. Reported operational by service owner. Uptime was not measured.`
-    : `${date}. ${stateLabels[day.state]}. ${uptime} ${down}`;
+    : `${date}. ${stateLabels[day.state]}. ${uptime}`;
 }
 ---
 
@@ -217,6 +230,11 @@ function dayDetails(day: StatusSnapshot["components"][number]["history"][number]
                     <span class:list={["state-label", `text-${component.state}`]} data-component-state>{stateLabels[component.state]}</span>
                     <span aria-hidden="true">/</span>
                     <span data-component-response>{component.responseTimeMs === null ? "Response unavailable" : `${component.responseTimeMs} ms response`}</span>
+                  </div>
+                  <div class="component-availability" data-component-availability>
+                    <span data-availability-label>{availabilitySummary(component).label}</span>
+                    <strong data-availability-value>{availabilitySummary(component).value}</strong>
+                    <small data-availability-coverage>{availabilitySummary(component).coverage}</small>
                   </div>
                 </div>
                 <div class="uptime-history" role="group" aria-label={historySummary(component)} data-component-history>

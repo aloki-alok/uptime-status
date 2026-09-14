@@ -327,6 +327,28 @@ function historySummary(component) {
   return `${component.name}, 90-day history. ${average} ${reportedCopy} ${interruptionCopy}`;
 }
 
+function availabilitySummary(component) {
+  const measured = component.history.filter((day) => typeof day.uptime === "number");
+  const reported = component.history.filter(
+    (day) => day.state === "operational" && day.uptime === null,
+  ).length;
+  const average = measured.length
+    ? measured.reduce((sum, day) => sum + day.uptime, 0) / measured.length
+    : null;
+  const displayed =
+    average === null
+      ? null
+      : Math.min(average < 100 ? 99.999 : 100, Math.round(average * 1000) / 1000);
+  return {
+    label:
+      measured.length === component.history.length
+        ? "90-day availability"
+        : "Measured availability",
+    value: displayed === null ? "Unavailable" : `${displayed.toFixed(3).replace(/\.?0+$/, "")}%`,
+    coverage: `${measured.length} of ${component.history.length} days measured${reported ? `; ${reported} reported operational` : ""}`,
+  };
+}
+
 function updateComponents(components) {
   for (const component of components) {
     const row = document.querySelector(`[data-component-slug="${component.slug}"]`);
@@ -344,6 +366,13 @@ function updateComponents(components) {
         component.responseTimeMs === null
           ? "Response unavailable"
           : `${Math.round(component.responseTimeMs)} ms response`;
+    const availability = availabilitySummary(component);
+    const availabilityLabel = row.querySelector("[data-availability-label]");
+    const availabilityValue = row.querySelector("[data-availability-value]");
+    const availabilityCoverage = row.querySelector("[data-availability-coverage]");
+    if (availabilityLabel) availabilityLabel.textContent = availability.label;
+    if (availabilityValue) availabilityValue.textContent = availability.value;
+    if (availabilityCoverage) availabilityCoverage.textContent = availability.coverage;
     if (!history) continue;
     history.setAttribute("aria-label", historySummary(component));
     const days = history.querySelectorAll(".uptime-day");

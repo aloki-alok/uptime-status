@@ -21,8 +21,7 @@ function uptimeDayDetail(day) {
     return `${date}. Reported operational by service owner. Uptime was not measured.`;
   const state = uptimeStateLabels[day.state] ?? "Status delayed";
   const uptime = day.uptime === null ? "No uptime data." : `${day.uptime}% uptime.`;
-  const down = `${day.downMinutes} ${day.downMinutes === 1 ? "minute" : "minutes"} down.`;
-  return `${date}. ${state}. ${uptime} ${down}`;
+  return `${date}. ${state}. ${uptime}`;
 }
 
 function updateUptimeDay(cell, day) {
