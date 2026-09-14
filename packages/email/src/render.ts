@@ -17,6 +17,7 @@ type IncidentEvent = {
   title: string;
   message: string;
   publishedAt: string;
+  affectedServices?: string[];
 };
 
 type MaintenanceEvent = {
@@ -27,6 +28,7 @@ type MaintenanceEvent = {
   startsAt: string;
   endsAt: string;
   publishedAt: string;
+  affectedServices?: string[];
 };
 
 export type MailEvent = ConfirmationEvent | IncidentEvent | MaintenanceEvent;
@@ -156,6 +158,35 @@ function eventEmoticon(site: SiteConfig, event: MailEvent) {
   return "";
 }
 
+function eventDetails(site: SiteConfig, event: MailEvent) {
+  if (event.kind === "confirmation") return [];
+  const details: Array<[string, string]> = [];
+  if (event.affectedServices?.length) {
+    if (event.affectedServices.length > 20) throw new Error("Too many affected services");
+    const names = event.affectedServices.map((name) => {
+      if (name.length > 120) throw new Error("Affected service name is too long");
+      return safeHeaderValue(name, "Affected service");
+    });
+    details.push(["Affected services", names.join(", ")]);
+  }
+  if (event.kind === "maintenance") {
+    const format = new Intl.DateTimeFormat(site.locale, {
+      timeZone: site.timeZone,
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+    details.push([
+      "Scheduled window",
+      `${format.format(new Date(event.startsAt))} to ${format.format(new Date(event.endsAt))}`,
+    ]);
+  }
+  return details;
+}
+
 export function renderStatusMail(input: RenderMailInput): RenderedMail {
   if (!validateSiteConfig(input.site)) throw new Error("Site configuration is invalid");
   const selectedDelivery = delivery(input.site);
@@ -186,6 +217,7 @@ export function renderStatusMail(input: RenderMailInput): RenderedMail {
     ? input.site.subscriptions.templates
     : undefined;
   const copy = eventCopy(input.event);
+  const details = eventDetails(input.site, input.event);
   const emoticon = eventEmoticon(input.site, input.event);
   const subjectPrefix = safeHeaderValue(
     templates?.subjectPrefix ?? `${input.site.displayName} status`,
@@ -195,7 +227,9 @@ export function renderStatusMail(input: RenderMailInput): RenderedMail {
   const actionUrl =
     input.event.kind === "confirmation"
       ? `${baseUrl}/api/v1/subscriptions/confirm?token=${encodeURIComponent(input.event.token)}`
-      : baseUrl;
+      : input.event.kind === "maintenance"
+        ? `${baseUrl}/maintenance/`
+        : baseUrl;
   const unsubscribeUrl = input.unsubscribeToken
     ? `${baseUrl}/api/v1/subscriptions/unsubscribe?token=${encodeURIComponent(input.unsubscribeToken)}`
     : null;
@@ -216,11 +250,28 @@ export function renderStatusMail(input: RenderMailInput): RenderedMail {
   }
 
   const mediaHtml = attachments
-    .map(
-      (attachment) =>
-        `<img src="cid:${attachment.contentId}" alt="${escapeHtml(attachment.alt)}" style="display:block;max-width:100%;height:auto;margin:0 0 24px">`,
+    .map((attachment) =>
+      attachment.contentId === "site-logo"
+        ? `<img src="cid:${attachment.contentId}" alt="${escapeHtml(attachment.alt)}" width="190" style="display:block;max-width:100%;height:auto">`
+        : `<img src="cid:${attachment.contentId}" alt="${escapeHtml(attachment.alt)}" style="display:block;max-width:100%;height:auto;margin:22px 0 0">`,
     )
     .join("");
+  const detailText = details.map(([label, value]) => `${label}: ${value}`).join("\n");
+  const detailHtml = details.length
+    ? `<div style="margin:28px 0;padding:20px 22px;background:#f5f7f4;border:1px solid #e1e8e3;border-radius:10px">${details.map(([label, value]) => `<p style="margin:0 0 12px;font-size:13px;line-height:1.5"><strong style="display:block;color:#596762;font-size:11px;letter-spacing:.08em;text-transform:uppercase">${escapeHtml(label)}</strong><span style="color:#17201d">${escapeHtml(value)}</span></p>`).join("")}</div>`
+    : "";
+  const accent =
+    input.event.kind === "maintenance"
+      ? "#2f6feb"
+      : input.event.kind === "resolved"
+        ? "#16805c"
+        : "#b7433c";
+  const accentBackground =
+    input.event.kind === "maintenance"
+      ? "#eaf1ff"
+      : input.event.kind === "resolved"
+        ? "#e9f5ef"
+        : "#fbefed";
   const signOff = templates?.signOff ?? `${input.site.displayName} status`;
   const unsubscribeText = unsubscribeUrl
     ? `\n\nUnsubscribe: ${unsubscribeUrl}`
@@ -250,8 +301,8 @@ export function renderStatusMail(input: RenderMailInput): RenderedMail {
       : {}),
     to: recipient,
     subject,
-    text: `${emoticon ? `${emoticon} ` : ""}${copy.eyebrow}\n\n${copy.title}\n\n${copy.message}\n\n${copy.action}: ${actionUrl}\n\n${signOff}${unsubscribeText}`,
-    html: `<!doctype html><html><body style="margin:0;background:#f4f6f5;color:#17201d;font-family:Arial,sans-serif"><main style="max-width:600px;margin:0 auto;padding:40px 24px">${mediaHtml}<p style="margin:0 0 12px;color:#596762;font-size:12px;font-weight:700;text-transform:uppercase">${escapeHtml(emoticon ? `${emoticon} ${copy.eyebrow}` : copy.eyebrow)}</p><h1 style="margin:0 0 18px;font-size:30px;line-height:1.15">${escapeHtml(copy.title)}</h1><p style="margin:0 0 24px;color:#44514d;font-size:16px;line-height:1.6">${escapeHtml(copy.message)}</p><p><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;background:#17201d;color:#ffffff;text-decoration:none">${escapeHtml(copy.action)}</a></p><p style="margin:30px 0 0;color:#596762;font-size:13px">${escapeHtml(signOff)}</p>${unsubscribeUrl ? `<p style="margin:20px 0 0;font-size:12px"><a href="${escapeHtml(unsubscribeUrl)}" style="color:#596762">Unsubscribe</a></p>` : '<p style="margin:20px 0 0;color:#596762;font-size:12px">You will not receive updates until you confirm your address.</p>'}</main></body></html>`,
+    text: `${emoticon ? `${emoticon} ` : ""}${copy.eyebrow}\n\n${copy.title}\n\n${copy.message}${detailText ? `\n\n${detailText}` : ""}\n\n${copy.action}: ${actionUrl}\n\n${signOff}${unsubscribeText}`,
+    html: `<!doctype html><html><body style="margin:0;background:#f4f6f5;color:#17201d;font-family:Arial,sans-serif"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f6f5"><tr><td align="center" style="padding:36px 16px"><table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid #dce5de;border-radius:14px"><tr><td style="padding:32px 36px 36px">${mediaHtml}<p style="margin:26px 0 22px"><span style="display:inline-block;padding:7px 10px;border-radius:5px;background:${accentBackground};color:${accent};font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase">${escapeHtml(emoticon ? `${emoticon} ${copy.eyebrow}` : copy.eyebrow)}</span></p><h1 style="margin:0 0 16px;color:#17201d;font-size:28px;line-height:1.2">${escapeHtml(copy.title)}</h1><p style="margin:0;color:#44514d;font-size:16px;line-height:1.6;white-space:pre-line">${escapeHtml(copy.message)}</p>${detailHtml}<p style="margin:28px 0 0"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;padding:12px 18px;border-radius:6px;background:#17201d;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none">${escapeHtml(copy.action)}</a></p></td></tr><tr><td style="padding:24px 36px 30px;border-top:1px solid #e7ece8;color:#63716b;font-size:12px;line-height:1.6"><strong style="display:block;margin-bottom:8px;color:#17201d">${escapeHtml(signOff)}</strong>${unsubscribeUrl ? `<a href="${escapeHtml(unsubscribeUrl)}" style="color:#596762">Unsubscribe from status updates</a>` : "You will not receive updates until you confirm your address."}</td></tr></table></td></tr></table></body></html>`,
     headers,
     attachments,
   };

@@ -66,12 +66,41 @@ describe("status mail renderer", () => {
         title: "API latency",
         message: "Requests are slower than usual.",
         publishedAt: "2026-09-08T10:00:00Z",
+        affectedServices: ["Public API"],
       },
     });
     expect(mail.text).toStartWith(":( Incident update");
     expect(mail.headers["List-Unsubscribe"]).toContain("unsubscribe-token");
     expect(mail.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
     expect(mail.messageId).toBe("example-service:delivery-person-001");
+    expect(mail.text).toContain("Affected services: Public API");
+    expect(mail.html).toContain("Affected services");
+  });
+
+  test("shows scheduled window and services in both maintenance alternatives", () => {
+    const mail = renderStatusMail({
+      site,
+      recipient: "person@example.com",
+      publicBaseUrl: "https://status.example.com",
+      unsubscribeToken: "unsubscribe-token",
+      deliveryId: "delivery-maintenance-001",
+      event: {
+        kind: "maintenance",
+        eventId: "maintenance-001",
+        title: "Voice gateway maintenance",
+        message: "New sessions may briefly fail to connect.",
+        startsAt: "2026-09-16T12:00:00Z",
+        endsAt: "2026-09-16T13:00:00Z",
+        publishedAt: "2026-09-15T12:00:00Z",
+        affectedServices: ["Live voice gateway", "SIP trunking"],
+      },
+    });
+    expect(mail.text).toContain("Affected services: Live voice gateway, SIP trunking");
+    expect(mail.text).toContain("Scheduled window:");
+    expect(mail.text).toContain("UTC");
+    expect(mail.text).toContain("View maintenance: https://status.example.com/maintenance/");
+    expect(mail.html).toContain("Scheduled window");
+    expect(mail.html).toContain("Live voice gateway, SIP trunking");
   });
 
   test("uses a recipient-specific provider idempotency key for fanout", () => {
