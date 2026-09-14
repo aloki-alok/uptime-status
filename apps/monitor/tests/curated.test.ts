@@ -95,6 +95,37 @@ describe("curated notices", () => {
     expect(monitor.db.query("SELECT COUNT(*) AS n FROM curated_audit").get()).toEqual({ n: 2 });
   });
 
+  test("only an explicit operator choice records a notification intent", () => {
+    const monitor = new MonitorStore(new Database(":memory:"));
+    const curated = new CuratedStore(monitor.db, site);
+    curated.save("incident", incident, null, "operator", "open", true);
+    const resolved: Incident = {
+      ...incident,
+      revision: 2,
+      state: "resolved",
+      resolvedAt: "2026-09-12T09:10:00.000Z",
+      updates: [
+        ...incident.updates,
+        {
+          id: "resolution",
+          state: "resolved",
+          message: "Service is restored.",
+          publishedAt: "2026-09-12T09:10:00.000Z",
+        },
+      ],
+    };
+    curated.save("incident", resolved, 1, "operator", "resolve");
+    expect(
+      monitor.db
+        .query("SELECT action, revision, update_id FROM notification_intents ORDER BY revision")
+        .all(),
+    ).toEqual([{ action: "open", revision: 1, update_id: "initial" }]);
+    expect(() => curated.save("incident", resolved, 1, "operator", "resolve", true)).toThrow();
+    expect(monitor.db.query("SELECT COUNT(*) AS n FROM notification_intents").get()).toEqual({
+      n: 1,
+    });
+  });
+
   test("a scheduled maintenance window activates and ends without masking an outage", () => {
     const monitor = new MonitorStore(new Database(":memory:"));
     monitor.recordCheck({
@@ -124,7 +155,10 @@ describe("curated notices", () => {
         },
       ],
     };
-    curated.save("maintenance", maintenance, null, "test-operator", "schedule");
+    curated.save("maintenance", maintenance, null, "test-operator", "schedule", true);
+    expect(
+      monitor.db.query("SELECT kind, action, update_id FROM notification_intents").all(),
+    ).toEqual([{ kind: "maintenance", action: "schedule", update_id: "scheduled" }]);
 
     const active = buildSnapshotFromStore({
       store: monitor,

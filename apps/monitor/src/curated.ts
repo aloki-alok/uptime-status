@@ -32,6 +32,17 @@ const SCHEMA = `
     published_at TEXT NOT NULL,
     body TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS notification_intents(
+    site_id TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK(kind IN ('incident', 'maintenance')),
+    slug TEXT NOT NULL,
+    revision INTEGER NOT NULL CHECK(revision >= 1),
+    action TEXT NOT NULL,
+    update_id TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY(site_id, kind, slug, revision)
+  );
 `;
 
 function parseEvent(row: StoredRow, site: SiteConfig): CuratedEvent {
@@ -84,6 +95,7 @@ export class CuratedStore {
     expectedRevision: number | null,
     actor: string,
     action: string,
+    notifySubscribers = false,
   ) {
     const slugs = new Set(this.site.components.map((component) => component.componentId));
     const valid =
@@ -96,6 +108,10 @@ export class CuratedStore {
     }
     const body = JSON.stringify(next);
     const publishedAt = new Date().toISOString();
+    const updateId = next.updates.at(-1)?.id ?? "";
+    if (notifySubscribers && !updateId) {
+      throw new Error("Notification requires a customer update; nothing was published");
+    }
     this.db.transaction(() => {
       if (expectedRevision === null) {
         this.db.run(
@@ -114,6 +130,12 @@ export class CuratedStore {
         "INSERT INTO curated_audit(kind, slug, action, actor, before_revision, after_revision, published_at, body) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         [kind, next.slug, action, actor, expectedRevision, next.revision, publishedAt, body],
       );
+      if (notifySubscribers) {
+        this.db.run(
+          "INSERT INTO notification_intents(site_id, kind, slug, revision, action, update_id, body, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          [this.site.siteId, kind, next.slug, next.revision, action, updateId, body, publishedAt],
+        );
+      }
     })();
   }
 }

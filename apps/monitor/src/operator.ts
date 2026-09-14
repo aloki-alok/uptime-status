@@ -11,16 +11,17 @@ import { type CuratedEvent, type CuratedKind, CuratedStore } from "./curated";
 const HELP = `Usage: status <kind> <action> [slug]
 
   status incident list
-  status incident open
-  status incident update <slug>
-  status incident resolve <slug>
+  status incident open [--notify]
+  status incident update <slug> [--notify]
+  status incident resolve <slug> [--notify]
   status maintenance list
-  status maintenance schedule
-  status maintenance update <slug>
-  status maintenance cancel <slug>
-  status maintenance complete <slug>
+  status maintenance schedule [--notify]
+  status maintenance update <slug> [--notify]
+  status maintenance cancel <slug> [--notify]
+  status maintenance complete <slug> [--notify]
 
 Commands with changes ask short questions, show a preview, then require PUBLISH.
+Email is sent only when --notify is supplied and notification delivery is enabled.
 Only people with server access can run this command. No text file is needed.`;
 
 type Questions = ReturnType<typeof createInterface>;
@@ -127,7 +128,12 @@ async function time(questions: Questions, label: string, current?: string) {
   }
 }
 
-function preview(kind: CuratedKind, event: CuratedEvent, site: SiteConfig) {
+function preview(
+  kind: CuratedKind,
+  event: CuratedEvent,
+  site: SiteConfig,
+  notifySubscribers: boolean,
+) {
   const names = new Map(site.components.map((item) => [item.componentId, item.name]));
   console.log("\nPUBLIC NOTICE PREVIEW");
   console.log("=".repeat(48));
@@ -146,6 +152,7 @@ function preview(kind: CuratedKind, event: CuratedEvent, site: SiteConfig) {
     console.log(`Expected impact: ${maintenance.expectedImpact}`);
   }
   console.log(`Update: ${event.updates.at(-1)?.message}`);
+  console.log(`Email subscribers: ${notifySubscribers ? "Yes" : "No"}`);
   console.log("=".repeat(48));
 }
 
@@ -297,8 +304,7 @@ export async function runOperator(args: string[]) {
     console.log(HELP);
     return 0;
   }
-  const [kind, action, slug] = args;
-  if (kind !== "incident" && kind !== "maintenance") throw new Error(HELP);
+  const { kind, action, slug, notifySubscribers } = parseOperatorArgs(args);
   const sitePath = process.env.STATUS_SITE_CONFIG;
   const databasePath = process.env.STATUS_DATABASE;
   if (!sitePath || !databasePath)
@@ -308,6 +314,12 @@ export async function runOperator(args: string[]) {
   if (issues.length)
     throw new Error(`Site configuration is invalid: ${issues[0].path}: ${issues[0].message}`);
   const site = parsed as SiteConfig;
+  if (
+    notifySubscribers &&
+    (!site.subscriptions.enabled || !site.subscriptions.notificationFanoutEnabled)
+  ) {
+    throw new Error("Email delivery is disabled. Nothing was published.");
+  }
   const monitor = new MonitorStore(databasePath);
   try {
     const store = new CuratedStore(monitor.db, site);
@@ -347,7 +359,7 @@ export async function runOperator(args: string[]) {
           : current
             ? await changeMaintenance(questions, current as Maintenance, site, action)
             : await createMaintenance(questions, store, site);
-      preview(kind, next, site);
+      preview(kind, next, site, notifySubscribers);
       const confirmation = (
         await questions.question("Type PUBLISH to make this public, or press Enter to cancel: ")
       ).trim();
@@ -361,8 +373,10 @@ export async function runOperator(args: string[]) {
         current?.revision ?? null,
         process.env.STATUS_ACTOR || "server-operator",
         action,
+        notifySubscribers,
       );
       console.log(`Saved ${kind} ${next.slug}. The monitor will publish it within 60 seconds.`);
+      if (notifySubscribers) console.log("Subscriber email was queued for delivery.");
       return 0;
     } finally {
       questions.close();
@@ -370,6 +384,23 @@ export async function runOperator(args: string[]) {
   } finally {
     monitor.db.close();
   }
+}
+
+export function parseOperatorArgs(args: string[]) {
+  const notifySubscribers = args.includes("--notify");
+  if (args.filter((arg) => arg === "--notify").length > 1) throw new Error(HELP);
+  const positional = args.filter((arg) => arg !== "--notify");
+  const [kind, action, slug] = positional;
+  if (
+    (kind !== "incident" && kind !== "maintenance") ||
+    positional.length < 2 ||
+    positional.length > 3 ||
+    (slug?.startsWith("--") ?? false) ||
+    (action === "list" && (slug !== undefined || notifySubscribers))
+  ) {
+    throw new Error(HELP);
+  }
+  return { kind: kind as CuratedKind, action, slug, notifySubscribers };
 }
 
 if (import.meta.main) {
