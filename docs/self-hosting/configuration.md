@@ -37,7 +37,7 @@ The same canonical validator also runs when the web application loads build data
 ### Brand and community
 
 - `brand.homeUrl` must be an HTTPS URL without credentials, query text, or a fragment.
-- `brand.homeLinkLabel` optionally names the header button linking to `brand.homeUrl`. It defaults to `Visit website`.
+- `brand.homeLinkLabel` optionally names the header button linking to `brand.homeUrl`. It defaults to `Go to platform`.
 - Logo, icon, favicon, and optional email media paths begin with `./`, stay inside the site directory, and contain no empty, `.` or `..` path segments.
 - `brand.logoAlt` describes the site identity, not the image appearance.
 - `community` is optional. Its `kind` is `discord`, `forum`, or `community`, and its URL must use HTTPS.

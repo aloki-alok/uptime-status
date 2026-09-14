@@ -26,7 +26,7 @@ const iconDark = siteAssetDataUrl(site.brand.iconDarkPath);
   </a>
   <nav aria-label="Status navigation">
     <a href="/history/" aria-current={active === "history" ? "page" : undefined}>Past incidents</a>
-    <a class="platform-link" href={site.brand.homeUrl}>{site.brand.homeLinkLabel ?? "Visit website"}</a>
+    <a class="platform-link" href={site.brand.homeUrl}>{site.brand.homeLinkLabel ?? "Go to platform"}</a>
     {site.community && (
       <a
         class:list={["community-link", site.community.kind !== "discord" && "community-text"]}

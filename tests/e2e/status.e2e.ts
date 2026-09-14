@@ -36,7 +36,7 @@ test.describe("status overview", () => {
     ).toBe(true);
     await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(2);
     await expect(page.getByRole("link", { name: "Past incidents" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Visit website" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "Go to platform" })).toHaveAttribute(
       "href",
       "https://example.com",
     );
