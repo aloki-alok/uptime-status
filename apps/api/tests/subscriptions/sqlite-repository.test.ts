@@ -36,7 +36,15 @@ test("subscriber confirmation and unsubscribe state survive database reopen", as
     const secondRepository = new SqliteSubscriptionRepository(secondDb);
     const secondService = new SubscriptionService(secondRepository, options);
     expect(secondRepository.pendingConfirmations(10)[0].token).toBe(confirmation.token);
+    const beforeConfirmation = await secondRepository.get("test-status", confirmation.emailKey);
     expect(await secondService.confirm(confirmation.token)).toBe("confirmed");
+    if (!beforeConfirmation) throw new Error("Pending subscriber disappeared");
+    expect(
+      await secondRepository.commit({
+        expectedRevision: beforeConfirmation.revision,
+        record: { ...beforeConfirmation, revision: beforeConfirmation.revision + 1 },
+      }),
+    ).toMatchObject({ committed: false });
     const active = secondDb.query("SELECT email_key, status FROM subscribers").get() as {
       email_key: string;
       status: string;

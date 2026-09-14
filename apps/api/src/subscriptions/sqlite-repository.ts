@@ -54,60 +54,62 @@ export class SqliteSubscriptionRepository implements SubscriptionRepository {
   }
 
   async commit(input: SubscriptionCommit): Promise<SubscriptionCommitResult> {
-    return this.db.transaction(() => {
-      const current = decode(
-        this.db
-          .query("SELECT body FROM subscribers WHERE site_id = ? AND email_key = ?")
-          .get(input.record.siteId, input.record.emailKey) as StoredRecord | null,
-      );
-      if ((current?.revision ?? null) !== input.expectedRevision) {
-        return { committed: false as const, current };
-      }
+    return this.db
+      .transaction(() => {
+        const current = decode(
+          this.db
+            .query("SELECT body FROM subscribers WHERE site_id = ? AND email_key = ?")
+            .get(input.record.siteId, input.record.emailKey) as StoredRecord | null,
+        );
+        if ((current?.revision ?? null) !== input.expectedRevision) {
+          return { committed: false as const, current };
+        }
 
-      const record = structuredClone(input.record);
-      if (current) {
-        this.db.run(
-          "UPDATE subscribers SET revision = ?, status = ?, normalized_email = ?, body = ?, updated_at = ? WHERE site_id = ? AND email_key = ?",
-          [
-            record.revision,
-            record.status,
-            record.normalizedEmail,
-            JSON.stringify(record),
-            record.updatedAt,
-            record.siteId,
-            record.emailKey,
-          ],
-        );
-      } else {
-        this.db.run(
-          "INSERT INTO subscribers(site_id, email_key, revision, status, normalized_email, body, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          [
-            record.siteId,
-            record.emailKey,
-            record.revision,
-            record.status,
-            record.normalizedEmail,
-            JSON.stringify(record),
-            record.updatedAt,
-          ],
-        );
-      }
-      if (input.outbox) {
-        this.db.run(
-          "INSERT INTO confirmation_outbox(outbox_id, site_id, email_key, token_version, normalized_email, token, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-          [
-            input.outbox.outboxId,
-            input.outbox.siteId,
-            input.outbox.emailKey,
-            input.outbox.tokenVersion,
-            input.outbox.normalizedEmail,
-            input.outbox.token,
-            input.outbox.createdAt,
-          ],
-        );
-      }
-      return { committed: true as const, record };
-    })();
+        const record = structuredClone(input.record);
+        if (current) {
+          this.db.run(
+            "UPDATE subscribers SET revision = ?, status = ?, normalized_email = ?, body = ?, updated_at = ? WHERE site_id = ? AND email_key = ?",
+            [
+              record.revision,
+              record.status,
+              record.normalizedEmail,
+              JSON.stringify(record),
+              record.updatedAt,
+              record.siteId,
+              record.emailKey,
+            ],
+          );
+        } else {
+          this.db.run(
+            "INSERT INTO subscribers(site_id, email_key, revision, status, normalized_email, body, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+              record.siteId,
+              record.emailKey,
+              record.revision,
+              record.status,
+              record.normalizedEmail,
+              JSON.stringify(record),
+              record.updatedAt,
+            ],
+          );
+        }
+        if (input.outbox) {
+          this.db.run(
+            "INSERT INTO confirmation_outbox(outbox_id, site_id, email_key, token_version, normalized_email, token, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [
+              input.outbox.outboxId,
+              input.outbox.siteId,
+              input.outbox.emailKey,
+              input.outbox.tokenVersion,
+              input.outbox.normalizedEmail,
+              input.outbox.token,
+              input.outbox.createdAt,
+            ],
+          );
+        }
+        return { committed: true as const, record };
+      })
+      .immediate();
   }
 
   pendingConfirmations(limit: number): ConfirmationOutboxRecord[] {
