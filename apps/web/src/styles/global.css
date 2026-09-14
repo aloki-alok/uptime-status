@@ -204,48 +204,73 @@ dd,
 .site-header nav {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.nav-actions,
+.nav-tools {
+  display: flex;
+  align-items: center;
   gap: 6px;
+}
+
+.nav-tools {
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
 }
 
 .site-header nav a,
 .site-header nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   min-height: 40px;
   padding: 9px 12px;
-  border: 0;
-  border-radius: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   color: var(--ink-soft);
-  background: transparent;
+  background: var(--surface-raised);
   font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
   text-decoration: none;
   cursor: pointer;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
 }
 
 .site-header nav a:hover,
+.site-header nav button:hover,
 .site-header nav a[aria-current="page"] {
   color: var(--ink);
   background: var(--accent-wash);
+  border-color: var(--line-strong);
+}
+
+.nav-actions svg {
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.nav-label-short {
+  display: none;
 }
 
 .site-header nav .subscribe-trigger {
-  margin-left: 8px;
-  padding-inline: 16px;
-  color: var(--canvas);
-  background: var(--ink);
+  color: var(--accent-strong);
 }
 
-.site-header nav .platform-link {
-  margin-left: 6px;
-  padding-inline: 15px;
-  color: var(--canvas);
-  background: var(--ink);
-}
-
-.site-header nav .platform-link:hover {
-  color: var(--canvas);
-  background: var(--ink-soft);
-}
-
-.site-header nav .subscribe-trigger:active {
+.site-header nav a:active,
+.site-header nav button:active {
   transform: translateY(1px);
 }
 
@@ -1490,10 +1515,6 @@ dd,
     min-height: 44px;
   }
 
-  .site-header nav .subscribe-trigger {
-    margin-left: 0;
-  }
-
   .state-lead,
   .variant-signal .state-lead {
     padding: 28px 20px;
@@ -1609,18 +1630,52 @@ dd,
 
 @media (max-width: 560px) {
   .site-header {
+    position: relative;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    row-gap: 8px;
     padding: 14px var(--content-gutter);
   }
 
   .site-header nav {
-    display: flex;
-    gap: 2px;
+    flex: 0 0 100%;
+    width: 100%;
+  }
+
+  .nav-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 4px;
+  }
+
+  .nav-tools {
+    position: absolute;
+    top: 14px;
+    right: var(--content-gutter);
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .nav-label-full {
+    display: none;
+  }
+
+  .nav-label-short {
+    display: inline;
   }
 
   .site-header nav a,
   .site-header nav button {
-    padding-inline: 8px;
+    gap: 6px;
+    padding-inline: 5px;
     font-size: 12px;
+  }
+
+  .site-header nav .community-link,
+  .site-header nav .theme-toggle {
+    width: 40px;
+    padding-inline: 0;
   }
 
   .review-rail {
