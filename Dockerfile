@@ -15,12 +15,14 @@ RUN bun install --frozen-lockfile
 # musl target so the binary runs on Alpine. bun:sqlite is built into the runtime and is
 # bundled by --compile, so the image needs no SQLite package of its own.
 RUN bun build --compile --target=bun-linux-x64-musl apps/monitor/src/index.ts --outfile /monitor
+RUN bun build --compile --target=bun-linux-x64-musl apps/api/src/server.ts --outfile /status-api
 
 FROM alpine:3.22 AS runtime
 WORKDIR /app
 # The musl-compiled binary links against libstdc++, which bare Alpine does not ship.
 RUN apk add --no-cache libstdc++ && addgroup -S monitor && adduser -S -G monitor -h /app -H monitor
 COPY --from=build /monitor /usr/local/bin/monitor
+COPY --from=build /status-api /usr/local/bin/status-api
 RUN printf '#!/bin/sh\nexec /usr/local/bin/monitor --operator "$@"\n' > /usr/local/bin/status && chmod 755 /usr/local/bin/status
 
 # STATUS_DATABASE must point inside this volume so history survives the container being
