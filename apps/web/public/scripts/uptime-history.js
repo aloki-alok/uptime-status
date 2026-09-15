@@ -17,8 +17,7 @@ let activeUptimeDay;
 
 function uptimeDayDetail(day) {
   const date = uptimeDate.format(new Date(`${day.date}T00:00:00Z`));
-  if (day.state === "operational" && day.uptime === null)
-    return `${date}. Reported operational by service owner. Uptime was not measured.`;
+  if (day.state === "operational" && day.uptime === null) return `${date}. Operational.`;
   const state = uptimeStateLabels[day.state] ?? "Status delayed";
   const uptime = day.uptime === null ? "No uptime data." : `${day.uptime}% uptime.`;
   return `${date}. ${state}. ${uptime}`;

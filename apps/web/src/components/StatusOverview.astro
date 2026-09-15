@@ -87,34 +87,27 @@ function historySummary(component: StatusSnapshot["components"][number]) {
   const counts = Map.groupBy(component.history, (day) => day.state);
   const interruptions = component.history.length - (counts.get("operational")?.length ?? 0);
   const measured = component.history.flatMap((day) => (day.uptime === null ? [] : [day.uptime]));
-  const reported = component.history.filter((day) => day.state === "operational" && day.uptime === null).length;
   const average =
     measured.length === 0
       ? "No uptime measurement is available."
-      : `${(measured.reduce((sum, uptime) => sum + uptime, 0) / measured.length).toFixed(3)}% average uptime${reported ? ` across ${measured.length} measured ${measured.length === 1 ? "day" : "days"}` : ""}.`;
-  const reportedCopy = reported ? `${reported} operator-reported operational ${reported === 1 ? "day" : "days"}.` : "";
+      : `${(measured.reduce((sum, uptime) => sum + uptime, 0) / measured.length).toFixed(3)}% average uptime.`;
   const interruptionCopy =
     interruptions === 0
       ? "No interrupted days."
       : `${interruptions} ${interruptions === 1 ? "day" : "days"} with an interruption.`;
 
-  return `${component.name}, 90-day history. ${average} ${reportedCopy} ${interruptionCopy}`;
+  return `${component.name}, 90-day history. ${average} ${interruptionCopy}`;
 }
 
 function availabilitySummary(component: StatusSnapshot["components"][number]) {
   const measured = component.history.filter((day) => day.uptime !== null);
-  const reported = component.history.filter((day) => day.state === "operational" && day.uptime === null).length;
   const average = measured.length
     ? measured.reduce((sum, day) => sum + day.uptime!, 0) / measured.length
     : null;
   const displayed = average === null ? null : Math.min(average < 100 ? 99.999 : 100, Math.round(average * 1000) / 1000);
   return {
-    label: measured.length === component.history.length ? "90-day availability" : "Measured availability",
+    label: measured.length === component.history.length ? "90-day availability" : "Availability",
     value: displayed === null ? "Unavailable" : `${displayed.toFixed(3).replace(/\.?0+$/, "")}%`,
-    coverage:
-      measured.length === component.history.length
-        ? ""
-        : `${measured.length} days measured${reported ? `; ${reported} reported operational` : ""}`,
   };
 }
 
@@ -132,7 +125,7 @@ function dayDetails(day: StatusSnapshot["components"][number]["history"][number]
   // reasonably reads the date as local and two people mean different windows by "Apr 2".
   const date = `${historyDate.format(new Date(`${day.date}T00:00:00Z`))} (UTC)`;
   return reported
-    ? `${date}. Reported operational by service owner. Uptime was not measured.`
+    ? `${date}. Operational.`
     : `${date}. ${stateLabels[day.state]}. ${uptime}`;
 }
 ---
@@ -239,9 +232,6 @@ function dayDetails(day: StatusSnapshot["components"][number]["history"][number]
                   <div class="component-availability" data-component-availability>
                     <span data-availability-label>{availabilitySummary(component).label}</span>
                     <strong data-availability-value>{availabilitySummary(component).value}</strong>
-                    <small data-availability-coverage hidden={!availabilitySummary(component).coverage}>
-                      {availabilitySummary(component).coverage}
-                    </small>
                   </div>
                   <div class="uptime-history" role="group" aria-label={historySummary(component)} data-component-history>
                     {component.history.map((day, index) => (

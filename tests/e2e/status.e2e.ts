@@ -371,10 +371,7 @@ test("latency charts leave missing minute buckets visibly disconnected", async (
   await expect(card.locator("[data-chart-segment]")).toHaveCount(2);
 });
 
-test("operator-reported operational days do not claim measured uptime", async ({
-  page,
-  request,
-}) => {
+test("unmeasured operational days keep visitor copy simple", async ({ page, request }) => {
   const snapshot = await (await request.get("/current.json")).json();
   snapshot.generatedAt = new Date(Date.now() + 30_000).toISOString();
   snapshot.sourceRevision = "reported-history-test-0001";
@@ -393,14 +390,12 @@ test("operator-reported operational days do not claim measured uptime", async ({
   const history = page.locator('[data-component-slug="public-api"] [data-component-history]');
   const day = history.locator(".uptime-day").first();
   await expect(day).toHaveClass(/day-reported/);
-  await expect(day).toHaveAttribute(
-    "data-uptime-detail",
-    /Reported operational by service owner. Uptime was not measured./,
-  );
-  await expect(history).toHaveAttribute("aria-label", /1 operator-reported operational day/);
+  await expect(day).toHaveAttribute("data-uptime-detail", /Operational/);
+  await expect(day).not.toHaveAttribute("data-uptime-detail", /reported|service owner/i);
+  await expect(history).not.toHaveAttribute("aria-label", /reported|service owner/i);
   await expect(
     page.locator('[data-component-slug="public-api"] [data-component-availability]'),
-  ).toContainText("89 days measured");
+  ).not.toContainText("days measured");
   const reportedColor = await day.evaluate((element) => getComputedStyle(element).backgroundColor);
   const measuredColor = await history
     .locator(".day-operational:not(.day-reported)")

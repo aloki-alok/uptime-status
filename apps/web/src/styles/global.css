@@ -640,12 +640,6 @@ dd,
   letter-spacing: -0.03em;
 }
 
-.component-availability small {
-  color: var(--ink-soft);
-  font-size: 10px;
-  line-height: 1.4;
-}
-
 .uptime-history {
   position: relative;
   display: grid;

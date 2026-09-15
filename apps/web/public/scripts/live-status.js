@@ -310,28 +310,19 @@ function updateBanner(state, latestCheckAt) {
 
 function historySummary(component) {
   const measured = component.history.filter((day) => typeof day.uptime === "number");
-  const reported = component.history.filter(
-    (day) => day.state === "operational" && day.uptime === null,
-  ).length;
   const interruptions = component.history.filter((day) => day.state !== "operational").length;
   const average = measured.length
-    ? `${(measured.reduce((sum, day) => sum + day.uptime, 0) / measured.length).toFixed(3)}% average uptime${reported ? ` across ${measured.length} measured ${measured.length === 1 ? "day" : "days"}` : ""}.`
+    ? `${(measured.reduce((sum, day) => sum + day.uptime, 0) / measured.length).toFixed(3)}% average uptime.`
     : "No uptime measurement is available.";
-  const reportedCopy = reported
-    ? `${reported} operator-reported operational ${reported === 1 ? "day" : "days"}.`
-    : "";
   const interruptionCopy =
     interruptions === 0
       ? "No interrupted days."
       : `${interruptions} ${interruptions === 1 ? "day" : "days"} with an interruption.`;
-  return `${component.name}, 90-day history. ${average} ${reportedCopy} ${interruptionCopy}`;
+  return `${component.name}, 90-day history. ${average} ${interruptionCopy}`;
 }
 
 function availabilitySummary(component) {
   const measured = component.history.filter((day) => typeof day.uptime === "number");
-  const reported = component.history.filter(
-    (day) => day.state === "operational" && day.uptime === null,
-  ).length;
   const average = measured.length
     ? measured.reduce((sum, day) => sum + day.uptime, 0) / measured.length
     : null;
@@ -340,15 +331,8 @@ function availabilitySummary(component) {
       ? null
       : Math.min(average < 100 ? 99.999 : 100, Math.round(average * 1000) / 1000);
   return {
-    label:
-      measured.length === component.history.length
-        ? "90-day availability"
-        : "Measured availability",
+    label: measured.length === component.history.length ? "90-day availability" : "Availability",
     value: displayed === null ? "Unavailable" : `${displayed.toFixed(3).replace(/\.?0+$/, "")}%`,
-    coverage:
-      measured.length === component.history.length
-        ? ""
-        : `${measured.length} days measured${reported ? `; ${reported} reported operational` : ""}`,
   };
 }
 
@@ -372,13 +356,8 @@ function updateComponents(components) {
     const availability = availabilitySummary(component);
     const availabilityLabel = row.querySelector("[data-availability-label]");
     const availabilityValue = row.querySelector("[data-availability-value]");
-    const availabilityCoverage = row.querySelector("[data-availability-coverage]");
     if (availabilityLabel) availabilityLabel.textContent = availability.label;
     if (availabilityValue) availabilityValue.textContent = availability.value;
-    if (availabilityCoverage) {
-      availabilityCoverage.textContent = availability.coverage;
-      availabilityCoverage.hidden = !availability.coverage;
-    }
     if (!history) continue;
     history.setAttribute("aria-label", historySummary(component));
     const days = history.querySelectorAll(".uptime-day");
