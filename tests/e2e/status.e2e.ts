@@ -400,7 +400,7 @@ test("operator-reported operational days do not claim measured uptime", async ({
   await expect(history).toHaveAttribute("aria-label", /1 operator-reported operational day/);
   await expect(
     page.locator('[data-component-slug="public-api"] [data-component-availability]'),
-  ).toContainText("89 of 90 days measured");
+  ).toContainText("89 days measured");
   const reportedColor = await day.evaluate((element) => getComputedStyle(element).backgroundColor);
   const measuredColor = await history
     .locator(".day-operational:not(.day-reported)")
@@ -428,9 +428,20 @@ test("90-day availability stays visible while bar details omit downtime duration
 
   const row = page.locator('[data-component-slug="public-api"]');
   await expect(row.locator("[data-component-availability]")).toContainText("99.995%");
-  await expect(row.locator("[data-component-availability]")).toContainText(
-    "90 of 90 days measured",
-  );
+  await expect(row.locator("[data-component-availability]")).not.toContainText("days measured");
+  const valueBox = await row.locator("[data-availability-value]").boundingBox();
+  const availabilityBox = await row.locator("[data-component-availability]").boundingBox();
+  const historyBox = await row.locator("[data-component-history]").boundingBox();
+  if (!valueBox || !availabilityBox || !historyBox)
+    throw new Error("Availability layout is missing");
+  expect(
+    Math.abs(valueBox.x + valueBox.width - (availabilityBox.x + availabilityBox.width)),
+  ).toBeLessThan(2);
+  if ((page.viewportSize()?.width ?? 0) > 560) {
+    expect(Math.abs(valueBox.x + valueBox.width - (historyBox.x + historyBox.width))).toBeLessThan(
+      2,
+    );
+  }
   const day = row.locator(".uptime-day").first();
   await expect(day).toHaveAttribute("data-uptime-detail", /99.55% uptime/);
   await expect(day).not.toHaveAttribute("data-uptime-detail", /minutes? down/);

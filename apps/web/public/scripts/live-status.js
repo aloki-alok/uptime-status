@@ -345,7 +345,10 @@ function availabilitySummary(component) {
         ? "90-day availability"
         : "Measured availability",
     value: displayed === null ? "Unavailable" : `${displayed.toFixed(3).replace(/\.?0+$/, "")}%`,
-    coverage: `${measured.length} of ${component.history.length} days measured${reported ? `; ${reported} reported operational` : ""}`,
+    coverage:
+      measured.length === component.history.length
+        ? ""
+        : `${measured.length} days measured${reported ? `; ${reported} reported operational` : ""}`,
   };
 }
 
@@ -372,7 +375,10 @@ function updateComponents(components) {
     const availabilityCoverage = row.querySelector("[data-availability-coverage]");
     if (availabilityLabel) availabilityLabel.textContent = availability.label;
     if (availabilityValue) availabilityValue.textContent = availability.value;
-    if (availabilityCoverage) availabilityCoverage.textContent = availability.coverage;
+    if (availabilityCoverage) {
+      availabilityCoverage.textContent = availability.coverage;
+      availabilityCoverage.hidden = !availability.coverage;
+    }
     if (!history) continue;
     history.setAttribute("aria-label", historySummary(component));
     const days = history.querySelectorAll(".uptime-day");

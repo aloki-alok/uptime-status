@@ -111,7 +111,10 @@ function availabilitySummary(component: StatusSnapshot["components"][number]) {
   return {
     label: measured.length === component.history.length ? "90-day availability" : "Measured availability",
     value: displayed === null ? "Unavailable" : `${displayed.toFixed(3).replace(/\.?0+$/, "")}%`,
-    coverage: `${measured.length} of ${component.history.length} days measured${reported ? `; ${reported} reported operational` : ""}`,
+    coverage:
+      measured.length === component.history.length
+        ? ""
+        : `${measured.length} days measured${reported ? `; ${reported} reported operational` : ""}`,
   };
 }
 
@@ -231,22 +234,26 @@ function dayDetails(day: StatusSnapshot["components"][number]["history"][number]
                     <span aria-hidden="true">/</span>
                     <span data-component-response>{component.responseTimeMs === null ? "Response unavailable" : `${component.responseTimeMs} ms response`}</span>
                   </div>
+                </div>
+                <div class="component-observability">
                   <div class="component-availability" data-component-availability>
                     <span data-availability-label>{availabilitySummary(component).label}</span>
                     <strong data-availability-value>{availabilitySummary(component).value}</strong>
-                    <small data-availability-coverage>{availabilitySummary(component).coverage}</small>
+                    <small data-availability-coverage hidden={!availabilitySummary(component).coverage}>
+                      {availabilitySummary(component).coverage}
+                    </small>
                   </div>
-                </div>
-                <div class="uptime-history" role="group" aria-label={historySummary(component)} data-component-history>
-                  {component.history.map((day, index) => (
-                    <time
-                      class:list={["uptime-day", `day-${day.state}`, day.state === "operational" && day.uptime === null && "day-reported"]}
-                      datetime={day.date}
-                      tabindex={index === component.history.length - 1 ? "0" : "-1"}
-                      aria-label={dayDetails(day)}
-                      data-uptime-detail={dayDetails(day)}
-                    ></time>
-                  ))}
+                  <div class="uptime-history" role="group" aria-label={historySummary(component)} data-component-history>
+                    {component.history.map((day, index) => (
+                      <time
+                        class:list={["uptime-day", `day-${day.state}`, day.state === "operational" && day.uptime === null && "day-reported"]}
+                        datetime={day.date}
+                        tabindex={index === component.history.length - 1 ? "0" : "-1"}
+                        aria-label={dayDetails(day)}
+                        data-uptime-detail={dayDetails(day)}
+                      ></time>
+                    ))}
+                  </div>
                 </div>
               </article>
             ))}
