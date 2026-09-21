@@ -12,6 +12,6 @@
   "dependencies": {
     "@astrojs/check": "0.9.10",
     "@uptime-status/domain": "workspace:*",
-    "astro": "7.3.1"
+    "astro": "7.3.3"
   }
 }
