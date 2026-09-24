@@ -5,7 +5,7 @@ import { type SiteConfig, siteConfigIssues } from "@uptime-status/domain";
 import { MonitorStore } from "@uptime-status/monitor";
 import { createMonitorApp } from "./app";
 import { runOperator } from "./operator";
-import { createFilesystemSink } from "./sink";
+import { createCloudflareKvSink, createFilesystemSink } from "./sink";
 
 function log(line: Record<string, unknown>) {
   console.log(JSON.stringify(line));
@@ -61,12 +61,18 @@ async function main() {
   }
   const siteConfigPath = requireEnv("STATUS_SITE_CONFIG");
   const databasePath = requireEnv("STATUS_DATABASE");
-  const outputDir = requireEnv("STATUS_OUTPUT_DIR");
   const publishIntervalSeconds = Number(process.env.STATUS_PUBLISH_INTERVAL_SECONDS ?? 60);
 
   const site = await readSiteConfig(siteConfigPath);
   const store = new MonitorStore(databasePath);
-  const sink = createFilesystemSink(outputDir);
+  const sink = process.env.CLOUDFLARE_KV_NAMESPACE_ID
+    ? createCloudflareKvSink({
+        accountId: requireEnv("CLOUDFLARE_ACCOUNT_ID"),
+        namespaceId: requireEnv("CLOUDFLARE_KV_NAMESPACE_ID"),
+        apiToken: requireEnv("CLOUDFLARE_API_TOKEN"),
+        siteId: site.siteId,
+      })
+    : createFilesystemSink(requireEnv("STATUS_OUTPUT_DIR"));
 
   const app = createMonitorApp({ site, store, sink, publishIntervalSeconds, log });
   app.start();

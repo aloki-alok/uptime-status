@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { validateStatusSnapshot } from "@uptime-status/domain";
 import { MonitorStore } from "@uptime-status/monitor";
 import { createCheckHandler, createPublisher } from "../src/handlers";
-import { createFilesystemSink } from "../src/sink";
+import { createCloudflareKvSink, createFilesystemSink } from "../src/sink";
 import { buildMonitorTargets } from "../src/targets";
 import { testSite } from "./fixtures";
 
@@ -107,5 +107,57 @@ describe("createPublisher", () => {
     const after = readFileSync(join(dir, "current.json"), "utf8");
     expect(after).toBe(before);
     expect(logs.filter((line) => line.kind === "publish.build_failed")).toHaveLength(1);
+  });
+});
+
+describe("createCloudflareKvSink", () => {
+  test("writes the immutable revision before the current pointer", async () => {
+    const requests: Array<{ url: string; method: string; body: string }> = [];
+    const fetchImpl = (async (input: string | URL | Request, init?: RequestInit) => {
+      requests.push({
+        url: String(input),
+        method: init?.method ?? "GET",
+        body: String(init?.body ?? ""),
+      });
+      return new Response('{"success":true}', { status: 200 });
+    }) as typeof fetch;
+    const sink = createCloudflareKvSink({
+      accountId: "account",
+      namespaceId: "namespace",
+      apiToken: "secret",
+      siteId: "example-service",
+      fetchImpl,
+    });
+    const body = JSON.stringify({ sourceRevision: "revision-1" });
+
+    await sink.publish("current.json", body);
+
+    expect(requests).toHaveLength(2);
+    expect(requests[0].url).toEndWith(
+      "/values/sites%2Fexample-service%2Fsnapshots%2Frevision-1.json",
+    );
+    expect(requests[1].url).toEndWith("/values/sites%2Fexample-service%2Fcurrent.json");
+    expect(requests.every((request) => request.method === "PUT" && request.body === body)).toBe(
+      true,
+    );
+  });
+
+  test("does not advance current when the immutable write fails", async () => {
+    let calls = 0;
+    const sink = createCloudflareKvSink({
+      accountId: "account",
+      namespaceId: "namespace",
+      apiToken: "secret",
+      siteId: "example-service",
+      fetchImpl: (async () => {
+        calls += 1;
+        return new Response("denied", { status: 403 });
+      }) as unknown as typeof fetch,
+    });
+
+    await expect(sink.publish("current.json", '{"sourceRevision":"revision-1"}')).rejects.toThrow(
+      "Cloudflare KV publish failed",
+    );
+    expect(calls).toBe(1);
   });
 });
