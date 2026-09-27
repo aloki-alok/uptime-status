@@ -1,14 +1,35 @@
 ---
+import type { Incident, Maintenance } from "@uptime-status/domain";
 import SiteHeader from "../components/SiteHeader.astro";
 import SubscribeDialog from "../components/SubscribeDialog.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { snapshot, site } from "../lib/build-data";
 
-const incidents = [
-  ...snapshot.activeIncidents,
-  ...snapshot.recentEvents.filter((event) => "startedAt" in event),
-];
-const pastMaintenance = snapshot.recentEvents.filter((event) => "endsAt" in event);
+type HistoryRecord =
+  | { kind: "incident"; startedAt: string; incident: Incident }
+  | { kind: "maintenance"; startedAt: string; maintenance: Maintenance };
+
+// One reverse-chronological stream, ordered by each record's own start time, so a newer
+// maintenance never sits below an older incident. Grouping by type would do exactly that.
+const events = snapshot.recentEvents;
+const records: HistoryRecord[] = [
+  ...snapshot.activeIncidents.map((incident) => ({
+    kind: "incident" as const,
+    startedAt: incident.startedAt,
+    incident,
+  })),
+  ...events
+    .filter((event): event is Incident => "startedAt" in event)
+    .map((incident) => ({ kind: "incident" as const, startedAt: incident.startedAt, incident })),
+  ...events
+    .filter((event): event is Maintenance => "endsAt" in event)
+    .map((maintenance) => ({
+      kind: "maintenance" as const,
+      startedAt: maintenance.startsAt,
+      maintenance,
+    })),
+].sort((first, second) => Date.parse(second.startedAt) - Date.parse(first.startedAt));
+
 const componentNames = new Map(
   snapshot.components.map((component) => [component.slug, component.name]),
 );
@@ -19,8 +40,8 @@ const day = new Intl.DateTimeFormat(site.locale, {
   timeZone: site.timeZone,
 });
 
-function durationMinutes(startedAt: string, resolvedAt?: string) {
-  const end = resolvedAt ? Date.parse(resolvedAt) : Date.parse(snapshot.generatedAt);
+function durationMinutes(startedAt: string, endsAt?: string) {
+  const end = endsAt ? Date.parse(endsAt) : Date.parse(snapshot.generatedAt);
   return Math.max(1, Math.round((end - Date.parse(startedAt)) / 60_000));
 }
 ---
@@ -32,41 +53,35 @@ function durationMinutes(startedAt: string, resolvedAt?: string) {
       <header class="subpage-heading">
         <p class="eyebrow">Service record</p>
         <h1>Past incidents</h1>
-        <p>See recent incidents and how they were resolved.</p>
+        <p>See recent incidents and maintenance, newest first.</p>
       </header>
-      <section class="history-list" aria-label="Past incidents" data-history-list data-time-zone={site.timeZone}>
-        {incidents.length === 0 ? (
-          <p class="empty-state">No incidents have been published.</p>
-        ) : incidents.map((incident) => (
-          <article class:list={["event-record", incident.state === "resolved" && "muted-record"]}>
-            <div class="event-date"><time datetime={incident.startedAt}>{day.format(new Date(incident.startedAt))}</time></div>
+      <section class="history-list" aria-label="Incident and maintenance history" data-history-list data-time-zone={site.timeZone}>
+        {records.length === 0 ? (
+          <p class="empty-state">No incidents or maintenance have been published.</p>
+        ) : records.map((record) => record.kind === "maintenance" ? (
+          <article class="event-record muted-record">
+            <div class="event-date"><time datetime={record.maintenance.startsAt}>{day.format(new Date(record.maintenance.startsAt))}</time></div>
             <div>
-              <span class:list={["state-label", incident.state !== "resolved" && `text-${incident.impact}`]}>{incident.state.replaceAll("_", " ")}</span>
-              <h2><a href={`/incidents/?id=${incident.slug}`}>{incident.title}</a></h2>
-              <p>{incident.updates.at(-1)?.message}</p>
+              <span class="state-label">{record.maintenance.state}</span>
+              <h2>{record.maintenance.title}</h2>
+              <p>{record.maintenance.expectedImpact}</p>
               <dl class="event-meta">
-                <div><dt>Impact</dt><dd>{incident.impact.replaceAll("_", " ")}</dd></div>
-                <div><dt>Affected</dt><dd>{incident.affectedComponents.map((slug) => componentNames.get(slug) ?? slug).join(", ")}</dd></div>
-                <div><dt>Duration</dt><dd>{durationMinutes(incident.startedAt, incident.resolvedAt)} minutes</dd></div>
+                <div><dt>Affected</dt><dd>{record.maintenance.affectedComponents.map((slug) => componentNames.get(slug) ?? slug).join(", ")}</dd></div>
+                <div><dt>Window</dt><dd>{durationMinutes(record.maintenance.startsAt, record.maintenance.endsAt)} minutes</dd></div>
               </dl>
             </div>
           </article>
-        ))}
-      </section>
-      <h2 class="history-category">Past maintenance</h2>
-      <section class="history-list" aria-label="Past maintenance" data-past-maintenance-list>
-        {pastMaintenance.length === 0 ? (
-          <p class="empty-state">No past maintenance has been published.</p>
-        ) : pastMaintenance.map((maintenance) => (
-          <article class="event-record muted-record">
-            <div class="event-date"><time datetime={maintenance.startsAt}>{day.format(new Date(maintenance.startsAt))}</time></div>
+        ) : (
+          <article class:list={["event-record", record.incident.state === "resolved" && "muted-record"]}>
+            <div class="event-date"><time datetime={record.incident.startedAt}>{day.format(new Date(record.incident.startedAt))}</time></div>
             <div>
-              <span class="state-label">{maintenance.state}</span>
-              <h2>{maintenance.title}</h2>
-              <p>{maintenance.expectedImpact}</p>
+              <span class:list={["state-label", record.incident.state !== "resolved" && `text-${record.incident.impact}`]}>{record.incident.state.replaceAll("_", " ")}</span>
+              <h2><a href={`/incidents/?id=${record.incident.slug}`}>{record.incident.title}</a></h2>
+              <p>{record.incident.updates.at(-1)?.message}</p>
               <dl class="event-meta">
-                <div><dt>Affected</dt><dd>{maintenance.affectedComponents.map((slug) => componentNames.get(slug) ?? slug).join(", ")}</dd></div>
-                <div><dt>Window</dt><dd>{durationMinutes(maintenance.startsAt, maintenance.endsAt)} minutes</dd></div>
+                <div><dt>Impact</dt><dd>{record.incident.impact.replaceAll("_", " ")}</dd></div>
+                <div><dt>Affected</dt><dd>{record.incident.affectedComponents.map((slug) => componentNames.get(slug) ?? slug).join(", ")}</dd></div>
+                <div><dt>Duration</dt><dd>{durationMinutes(record.incident.startedAt, record.incident.resolvedAt)} minutes</dd></div>
               </dl>
             </div>
           </article>

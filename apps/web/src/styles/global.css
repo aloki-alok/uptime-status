@@ -1234,12 +1234,6 @@ dd,
   border-top: 1px solid var(--line-strong);
 }
 
-.history-category {
-  margin: 72px 0 20px;
-  font-size: 21px;
-  font-weight: 600;
-}
-
 .event-record {
   display: grid;
   grid-template-columns: 120px 1fr;
