@@ -83,87 +83,100 @@ function incidentsFrom(snapshot) {
     .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
 }
 
+// Incidents and maintenance share one reverse-chronological stream, keyed on each record's
+// own start time, so a newer maintenance never renders below an older incident.
+function historyRecordsFrom(snapshot) {
+  const incidents = incidentsFrom(snapshot);
+  const maintenances = snapshot.recentEvents.filter(
+    (event) => "endsAt" in event && validMaintenance(event),
+  );
+  return [
+    ...incidents.map((incident) => ({ kind: "incident", at: incident.startedAt, incident })),
+    ...maintenances.map((maintenance) => ({
+      kind: "maintenance",
+      at: maintenance.startsAt,
+      maintenance,
+    })),
+  ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+}
+
+function incidentRecord(incident, snapshot, names) {
+  const article = node(
+    "article",
+    `event-record${incident.state === "resolved" ? " muted-record" : ""}`,
+  );
+  const date = node("div", "event-date");
+  date.append(timeElement(incident.startedAt, day));
+  const content = node("div");
+  content.append(
+    node(
+      "span",
+      `state-label${incident.state === "resolved" ? "" : ` text-${incident.impact}`}`,
+      incident.state.replaceAll("_", " "),
+    ),
+  );
+  const heading = node("h2");
+  const link = node("a", "", incident.title);
+  link.href = `/incidents/?id=${incident.slug}`;
+  heading.append(link);
+  content.append(heading, node("p", "", incident.updates.at(-1)?.message || ""));
+  const meta = node("dl", "event-meta");
+  const end = incident.resolvedAt
+    ? Date.parse(incident.resolvedAt)
+    : Date.parse(snapshot.generatedAt);
+  const minutes = Math.max(1, Math.round((end - Date.parse(incident.startedAt)) / 60_000));
+  meta.append(
+    line("Impact", incident.impact.replaceAll("_", " ")),
+    line("Affected", namesFor(incident.affectedComponents, names)),
+    line("Duration", `${minutes} minutes`),
+  );
+  content.append(meta);
+  article.append(date, content);
+  return article;
+}
+
+function maintenanceRecord(maintenance, names) {
+  const article = node("article", "event-record muted-record");
+  const date = node("div", "event-date");
+  date.append(timeElement(maintenance.startsAt, day));
+  const content = node("div");
+  content.append(
+    node("span", "state-label", maintenance.state),
+    node("h2", "", maintenance.title),
+    node("p", "", maintenance.expectedImpact),
+  );
+  const meta = node("dl", "event-meta");
+  const minutes = Math.max(
+    1,
+    Math.round((Date.parse(maintenance.endsAt) - Date.parse(maintenance.startsAt)) / 60_000),
+  );
+  meta.append(
+    line("Affected", namesFor(maintenance.affectedComponents, names)),
+    line("Window", `${minutes} minutes`),
+  );
+  content.append(meta);
+  article.append(date, content);
+  return article;
+}
+
 function renderHistory(snapshot) {
   const container = document.querySelector("[data-history-list]");
   if (!container) return;
   const names = new Map(snapshot.components.map((component) => [component.slug, component.name]));
-  const incidents = incidentsFrom(snapshot);
-  if (!incidents.length) {
-    container.replaceChildren(node("p", "empty-state", "No incidents have been published."));
+  const records = historyRecordsFrom(snapshot);
+  if (!records.length) {
+    container.replaceChildren(
+      node("p", "empty-state", "No incidents or maintenance have been published."),
+    );
     return;
   }
-  const cards = incidents.map((incident) => {
-    const article = node(
-      "article",
-      `event-record${incident.state === "resolved" ? " muted-record" : ""}`,
-    );
-    const date = node("div", "event-date");
-    date.append(timeElement(incident.startedAt, day));
-    const content = node("div");
-    content.append(
-      node(
-        "span",
-        `state-label${incident.state === "resolved" ? "" : ` text-${incident.impact}`}`,
-        incident.state.replaceAll("_", " "),
-      ),
-    );
-    const heading = node("h2");
-    const link = node("a", "", incident.title);
-    link.href = `/incidents/?id=${incident.slug}`;
-    heading.append(link);
-    content.append(heading, node("p", "", incident.updates.at(-1)?.message || ""));
-    const meta = node("dl", "event-meta");
-    const end = incident.resolvedAt
-      ? Date.parse(incident.resolvedAt)
-      : Date.parse(snapshot.generatedAt);
-    const minutes = Math.max(1, Math.round((end - Date.parse(incident.startedAt)) / 60_000));
-    meta.append(
-      line("Impact", incident.impact.replaceAll("_", " ")),
-      line("Affected", namesFor(incident.affectedComponents, names)),
-      line("Duration", `${minutes} minutes`),
-    );
-    content.append(meta);
-    article.append(date, content);
-    return article;
-  });
-  container.replaceChildren(...cards);
-}
-
-function renderPastMaintenance(snapshot) {
-  const container = document.querySelector("[data-past-maintenance-list]");
-  if (!container) return;
-  const names = new Map(snapshot.components.map((component) => [component.slug, component.name]));
-  const windows = snapshot.recentEvents
-    .filter((event) => "endsAt" in event && validMaintenance(event))
-    .sort((a, b) => Date.parse(b.startsAt) - Date.parse(a.startsAt));
-  if (!windows.length) {
-    container.replaceChildren(node("p", "empty-state", "No past maintenance has been published."));
-    return;
-  }
-  const cards = windows.map((maintenance) => {
-    const article = node("article", "event-record muted-record");
-    const date = node("div", "event-date");
-    date.append(timeElement(maintenance.startsAt, day));
-    const content = node("div");
-    content.append(
-      node("span", "state-label", maintenance.state),
-      node("h2", "", maintenance.title),
-      node("p", "", maintenance.expectedImpact),
-    );
-    const meta = node("dl", "event-meta");
-    const minutes = Math.max(
-      1,
-      Math.round((Date.parse(maintenance.endsAt) - Date.parse(maintenance.startsAt)) / 60_000),
-    );
-    meta.append(
-      line("Affected", namesFor(maintenance.affectedComponents, names)),
-      line("Window", `${minutes} minutes`),
-    );
-    content.append(meta);
-    article.append(date, content);
-    return article;
-  });
-  container.replaceChildren(...cards);
+  container.replaceChildren(
+    ...records.map((record) =>
+      record.kind === "incident"
+        ? incidentRecord(record.incident, snapshot, names)
+        : maintenanceRecord(record.maintenance, names),
+    ),
+  );
 }
 
 function renderMaintenance(snapshot) {
@@ -274,7 +287,6 @@ async function refreshRecords() {
     )
       throw new Error("Invalid snapshot");
     renderHistory(snapshot);
-    renderPastMaintenance(snapshot);
     renderMaintenance(snapshot);
     renderDetail(snapshot);
   } catch {

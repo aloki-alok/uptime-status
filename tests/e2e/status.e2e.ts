@@ -159,6 +159,46 @@ test("newly published notices appear without rebuilding the static site", async 
   await expect(page.getByText("We are checking slow requests.")).toBeVisible();
 });
 
+test("history page interleaves incidents and maintenance newest first", async ({
+  page,
+  request,
+}) => {
+  const snapshot = await (await request.get("/current.json")).json();
+  const incident = snapshot.recentEvents.find((event) => event.startedAt);
+  const startsAt = new Date(Date.parse(incident.startedAt) + 86_400_000).toISOString();
+  const maintenance = {
+    slug: "newer-maintenance-2026",
+    revision: 1,
+    title: "Newer maintenance window",
+    state: "completed",
+    expectedImpact: "A planned change completed.",
+    affectedComponents: [snapshot.components[0].slug],
+    startsAt,
+    endsAt: new Date(Date.parse(startsAt) + 3_600_000).toISOString(),
+    sourceTimeZone: "UTC",
+    updates: [
+      {
+        id: "newer-maintenance-update",
+        state: "completed",
+        message: "Done.",
+        publishedAt: startsAt,
+      },
+    ],
+  };
+  snapshot.generatedAt = new Date(Date.now() + 30_000).toISOString();
+  snapshot.latestCheckAt = snapshot.generatedAt;
+  snapshot.sourceRevision = "history-order-test-0001";
+  snapshot.recentEvents = [incident, maintenance];
+
+  await page.route("**/current.json", (route) => route.fulfill({ json: snapshot }));
+  await page.goto("/history/");
+
+  const records = page.locator("[data-history-list] .event-record");
+  await expect(records).toHaveCount(2);
+  await expect(records.nth(0)).toContainText("Newer maintenance window");
+  await expect(records.nth(1)).toContainText("Elevated API latency");
+});
+
 test("incident detail route exposes the complete response log", async ({ page }) => {
   await page.goto("/incidents/elevated-api-latency/");
   await expect(page.getByRole("heading", { level: 1, name: "Elevated API latency" })).toBeVisible();
