@@ -334,6 +334,24 @@ describe("buildSnapshotFromStore", () => {
       expect(snapshot.components[0]?.state).toBe("major_outage");
     });
 
+    test("a stalled probe does not escalate a short failure to major on elapsed time alone", () => {
+      const store = newStore();
+      recordChecks(store, [
+        ["2026-09-10T09:00:00.000Z", 1],
+        ["2026-09-10T09:01:00.000Z", 0],
+        ["2026-09-10T09:02:00.000Z", 0],
+      ]);
+
+      const snapshot = buildSnapshotFromStore({
+        store,
+        site: site(1),
+        now: () => new Date("2026-09-10T09:20:00.000Z"),
+      });
+
+      expect(snapshot.components[0]?.state).toBe("degraded");
+      expect(snapshot.overallStatus).toBe("unknown");
+    });
+
     test("an earlier long outage today does not make a new short failure major", () => {
       const store = newStore();
       recordChecks(store, [

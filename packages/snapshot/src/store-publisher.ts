@@ -112,22 +112,25 @@ function buildLatency(store: MonitorStore, componentId: string, anchorSeconds: n
 }
 
 /** Today's rollup keeps every blip until midnight, so "now" comes from the newest check and,
- * when it is down, from how long the current down run has lasted. */
+ * when it is down, from how long the current down run has lasted. The run is measured to the
+ * newest check, as the rollup does, so a stalled probe cannot escalate without new evidence. */
 function currentState(
   store: MonitorStore,
   componentId: string,
   latest: LatestCheckRow,
-  nowSeconds: number,
 ): StatusState {
   if (latest.status !== DOWN) return "operational";
   const downSince = store.db
     .query(
       `SELECT MIN(observed_at) AS at FROM checks
-       WHERE component_id = ? AND observed_at > COALESCE(
-         (SELECT MAX(observed_at) FROM checks WHERE component_id = ? AND status != ?), -1)`,
+       WHERE component_id = ? AND observed_at <= ? AND observed_at > COALESCE(
+         (SELECT MAX(observed_at) FROM checks
+          WHERE component_id = ? AND observed_at <= ? AND status != ?), -1)`,
     )
-    .get(componentId, componentId, DOWN) as { at: number };
-  return nowSeconds - downSince.at >= SUSTAINED_DOWN_SECONDS ? "major_outage" : "degraded";
+    .get(componentId, latest.observed_at, componentId, latest.observed_at, DOWN) as {
+    at: number;
+  };
+  return latest.observed_at - downSince.at >= SUSTAINED_DOWN_SECONDS ? "major_outage" : "degraded";
 }
 
 function sourceRevision(latestSeconds: number, componentIds: string[], curatedKeys: string[]) {
@@ -167,7 +170,7 @@ export function buildSnapshotFromStore(options: BuildSnapshotFromStoreOptions): 
 
     const history = buildHistory(store, componentId, endDate);
     const state = latestCheck
-      ? currentState(store, componentId, latestCheck, Math.floor(nowDate.getTime() / 1000))
+      ? currentState(store, componentId, latestCheck)
       : (history.at(-1)?.state ?? "unknown");
     // A component with no checks of its own still needs latestObservedAt <= generatedAt.
     const latestObservedAt = latestCheck
