@@ -263,4 +263,115 @@ describe("buildSnapshotFromStore", () => {
     expect(second.sourceRevision).toBe(first.sourceRevision);
     expect(second.sourceRevision.length).toBeGreaterThanOrEqual(8);
   });
+
+  describe("current component state follows the newest check, not the day's rollup", () => {
+    function recordChecks(store: MonitorStore, checks: [string, 0 | 1][]) {
+      for (const [iso, status] of checks) {
+        store.recordCheck({
+          componentId: "component-1",
+          observedAt: sec(iso),
+          status,
+          responseMs: 5,
+        });
+        store.rollUpDay("component-1", sec(iso));
+      }
+    }
+
+    test("a recovered blip shows operational now while today's history keeps the blip", () => {
+      const store = newStore();
+      recordChecks(store, [
+        ["2026-09-10T09:00:00.000Z", 1],
+        ["2026-09-10T09:01:00.000Z", 0],
+        ["2026-09-10T09:02:00.000Z", 1],
+      ]);
+
+      const snapshot = buildSnapshotFromStore({
+        store,
+        site: site(1),
+        now: () => new Date("2026-09-10T09:02:30.000Z"),
+      });
+      const component = snapshot.components[0];
+
+      expect(component?.state).toBe("operational");
+      expect(component?.history.at(-1)?.state).toBe("degraded");
+      expect(snapshot.overallStatus).toBe("operational");
+    });
+
+    test("a short failure that is still failing shows degraded", () => {
+      const store = newStore();
+      recordChecks(store, [
+        ["2026-09-10T09:00:00.000Z", 1],
+        ["2026-09-10T09:01:00.000Z", 0],
+        ["2026-09-10T09:02:00.000Z", 0],
+      ]);
+
+      const snapshot = buildSnapshotFromStore({
+        store,
+        site: site(1),
+        now: () => new Date("2026-09-10T09:02:30.000Z"),
+      });
+
+      expect(snapshot.components[0]?.state).toBe("degraded");
+    });
+
+    test("a failure that has lasted the sustained threshold shows major outage", () => {
+      const store = newStore();
+      recordChecks(store, [
+        ["2026-09-10T09:00:00.000Z", 1],
+        ...Array.from(
+          { length: 11 },
+          (_, minute) =>
+            [`2026-09-10T09:${String(minute + 1).padStart(2, "0")}:00.000Z`, 0] as [string, 0],
+        ),
+      ]);
+
+      const snapshot = buildSnapshotFromStore({
+        store,
+        site: site(1),
+        now: () => new Date("2026-09-10T09:11:30.000Z"),
+      });
+
+      expect(snapshot.components[0]?.state).toBe("major_outage");
+    });
+
+    test("a stalled probe does not escalate a short failure to major on elapsed time alone", () => {
+      const store = newStore();
+      recordChecks(store, [
+        ["2026-09-10T09:00:00.000Z", 1],
+        ["2026-09-10T09:01:00.000Z", 0],
+        ["2026-09-10T09:02:00.000Z", 0],
+      ]);
+
+      const snapshot = buildSnapshotFromStore({
+        store,
+        site: site(1),
+        now: () => new Date("2026-09-10T09:20:00.000Z"),
+      });
+
+      expect(snapshot.components[0]?.state).toBe("degraded");
+      expect(snapshot.overallStatus).toBe("unknown");
+    });
+
+    test("an earlier long outage today does not make a new short failure major", () => {
+      const store = newStore();
+      recordChecks(store, [
+        ...Array.from(
+          { length: 15 },
+          (_, minute) =>
+            [`2026-09-10T08:${String(minute).padStart(2, "0")}:00.000Z`, 0] as [string, 0],
+        ),
+        ["2026-09-10T08:30:00.000Z", 1],
+        ["2026-09-10T09:00:00.000Z", 0],
+      ]);
+
+      const snapshot = buildSnapshotFromStore({
+        store,
+        site: site(1),
+        now: () => new Date("2026-09-10T09:00:30.000Z"),
+      });
+
+      expect(snapshot.components[0]?.history.at(-1)?.state).toBe("major_outage");
+      expect(snapshot.components[0]?.state).toBe("degraded");
+    });
+  });
 });

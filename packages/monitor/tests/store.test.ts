@@ -63,6 +63,20 @@ describe("MonitorStore", () => {
     expect(result.downMinutes).toBe(Math.round(700 / 60));
   });
 
+  test("an ongoing failure counts as down only up to the newest check, not to midnight", () => {
+    const store = newStore();
+    store.recordCheck({ componentId: "c1", observedAt: START + 3600, status: 1, responseMs: 100 });
+    store.recordCheck({ componentId: "c1", observedAt: START + 3660, status: 0, responseMs: null });
+    store.recordCheck({ componentId: "c1", observedAt: START + 3720, status: 0, responseMs: null });
+
+    const result = store.rollUpDay("c1", START);
+
+    expect(result.downMinutes).toBe(1);
+    expect(result.severity).toBe("minor");
+    expect(result.state).toBe("degraded");
+    expect(result.uptime).toBe(99.931);
+  });
+
   test("prune returns pre-delete counts and deletes the right rows", () => {
     const store = newStore();
     const oldDate = "2020-01-01";
