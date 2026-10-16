@@ -105,6 +105,7 @@
         "@aws-sdk/client-secrets-manager": "^3.1128.0",
         "@uptime-status/domain": "workspace:*",
         "@uptime-status/monitor": "workspace:*",
+        "@uptime-status/uptime-math": "workspace:*",
       },
     },
     "packages/status-contract": {

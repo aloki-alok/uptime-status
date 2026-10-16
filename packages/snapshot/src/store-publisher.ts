@@ -14,6 +14,7 @@ import {
   validateStatusSnapshot,
 } from "@uptime-status/domain";
 import { type MonitorStore, ROLLUP_VERSION } from "@uptime-status/monitor";
+import { DOWN, SUSTAINED_DOWN_SECONDS } from "@uptime-status/uptime-math";
 
 const DAY_MS = 86_400_000;
 const HISTORY_DAYS = PUBLIC_HISTORY_WINDOW_DAYS;
@@ -26,7 +27,7 @@ export type BuildSnapshotFromStoreOptions = {
   curated?: { incidents: Incident[]; maintenances: Maintenance[] };
 };
 
-type LatestCheckRow = { observed_at: number; response_ms: number | null };
+type LatestCheckRow = { observed_at: number; status: number; response_ms: number | null };
 type LatencyCheckRow = { observed_at: number; response_ms: number | null };
 
 function checkedNow(now: () => Date) {
@@ -110,6 +111,25 @@ function buildLatency(store: MonitorStore, componentId: string, anchorSeconds: n
     }));
 }
 
+/** Today's rollup keeps every blip until midnight, so "now" comes from the newest check and,
+ * when it is down, from how long the current down run has lasted. */
+function currentState(
+  store: MonitorStore,
+  componentId: string,
+  latest: LatestCheckRow,
+  nowSeconds: number,
+): StatusState {
+  if (latest.status !== DOWN) return "operational";
+  const downSince = store.db
+    .query(
+      `SELECT MIN(observed_at) AS at FROM checks
+       WHERE component_id = ? AND observed_at > COALESCE(
+         (SELECT MAX(observed_at) FROM checks WHERE component_id = ? AND status != ?), -1)`,
+    )
+    .get(componentId, componentId, DOWN) as { at: number };
+  return nowSeconds - downSince.at >= SUSTAINED_DOWN_SECONDS ? "major_outage" : "degraded";
+}
+
 function sourceRevision(latestSeconds: number, componentIds: string[], curatedKeys: string[]) {
   const digest = createHash("sha256")
     .update(JSON.stringify({ componentIds, curatedKeys: curatedKeys.sort() }))
@@ -130,7 +150,7 @@ export function buildSnapshotFromStore(options: BuildSnapshotFromStoreOptions): 
     (configured) =>
       store.db
         .query(
-          `SELECT observed_at, response_ms FROM checks WHERE component_id = ? ORDER BY observed_at DESC LIMIT 1`,
+          `SELECT observed_at, status, response_ms FROM checks WHERE component_id = ? ORDER BY observed_at DESC LIMIT 1`,
         )
         .get(configured.componentId) as LatestCheckRow | null,
   );
@@ -146,7 +166,9 @@ export function buildSnapshotFromStore(options: BuildSnapshotFromStoreOptions): 
     const latestCheck = latestChecks[index];
 
     const history = buildHistory(store, componentId, endDate);
-    const state = history.at(-1)?.state ?? "unknown";
+    const state = latestCheck
+      ? currentState(store, componentId, latestCheck, Math.floor(nowDate.getTime() / 1000))
+      : (history.at(-1)?.state ?? "unknown");
     // A component with no checks of its own still needs latestObservedAt <= generatedAt.
     const latestObservedAt = latestCheck
       ? new Date(latestCheck.observed_at * 1000).toISOString()
