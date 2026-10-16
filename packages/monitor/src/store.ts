@@ -132,7 +132,10 @@ export class MonitorStore {
       ...dayRows.map((row) => ({ timestamp: row.observed_at, status: row.status })),
     ];
 
-    const intervals = confirmedDownIntervals(rowsForIntervals, start, end);
+    // An open down run ends at the newest check: closing it at midnight books the rest of
+    // today as downtime while the failure is still being observed.
+    const cutoff = Math.min(end, dayRows.at(-1)?.observed_at ?? end);
+    const intervals = confirmedDownIntervals(rowsForIntervals, start, cutoff);
 
     const up = dayRows.filter((row) => row.status === 1).length;
     const withPing = dayRows.filter((row) => row.response_ms != null);
